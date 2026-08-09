@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>HERESY DEX — Swap &amp; Bridge on The Grotto</title>
+<meta name="theme-color" content="#0A0A0A"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700;900&display=swap" rel="stylesheet"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕯️</text></svg>"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<style>
+:root{
+--red:#E8350A; --orange:#FF6B1A; --amber:#FF9500; --black:#0A0A0A; --dark:#111111;
+--card:#181818; --border:#2A2A2A; --text:#F0F0F0; --muted:#888888; --success:#22C55E;
+--font-display:'Bebas Neue',sans-serif; --font-body:'Barlow',sans-serif; --font-mono:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+body{background:var(--black);color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.6;min-height:100vh;overflow-x:hidden;position:relative;}
+::selection{background:rgba(255,107,26,.35);color:#fff;}
+h1,h2,h3,h4{font-family:var(--font-display);letter-spacing:1px;line-height:1.1;}
+.mono{font-family:var(--font-mono);}
+.container{max-width:900px;margin:0 auto;padding:0 16px;position:relative;z-index:1;}
+#bg-fx{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:var(--black);}
+.bg-glow{position:absolute;border-radius:50%;filter:blur(90px);opacity:.35;}
+.bg-glow.g1{width:520px;height:520px;background:radial-gradient(circle,var(--red),transparent 70%);top:-160px;left:-120px;animation:driftA 22s ease-in-out infinite;}
+.bg-glow.g2{width:600px;height:600px;background:radial-gradient(circle,var(--orange),transparent 70%);bottom:-220px;right:-160px;animation:driftB 26s ease-in-out infinite;}
+.bg-glow.g3{width:380px;height:380px;background:radial-gradient(circle,var(--amber),transparent 70%);top:40%;left:60%;animation:driftC 30s ease-in-out infinite;}
+@keyframes driftA{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(80px,60px) scale(1.15);}}
+@keyframes driftB{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-70px,-50px) scale(1.1);}}
+@keyframes driftC{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-50px,70px) scale(.9);}}
+.ember{position:absolute;bottom:-20px;border-radius:50%;background:radial-gradient(circle,#FFB35C,var(--orange) 60%,transparent 75%);opacity:0;animation-name:emberRise;animation-timing-function:ease-in;animation-iteration-count:infinite;}
+@keyframes emberRise{
+0%{transform:translate(0,0) scale(1);opacity:0;}
+8%{opacity:.9;}
+50%{transform:translate(var(--drift,20px),-52vh) scale(.8);opacity:.7;}
+92%{opacity:.15;}
+100%{transform:translate(calc(var(--drift,20px) * 1.6),-104vh) scale(.3);opacity:0;}
+}
+.grid-fx{position:absolute;inset:0;background-image:linear-gradient(rgba(255,107,26,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,107,26,.05) 1px,transparent 1px);background-size:42px 42px;mask-image:radial-gradient(circle at 50% 30%,black,transparent 75%);}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,10,10,.97);border-bottom:1px solid var(--border);backdrop-filter:blur(16px);padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.nav-logo{font-family:var(--font-display);font-size:1.6rem;letter-spacing:2px;flex-shrink:0;}
+.nav-logo span{color:var(--red);}
+.nav-tabs{display:flex;gap:4px;}
+.nav-tab{background:transparent;border:1px solid transparent;color:var(--muted);font-family:var(--font-body);font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.4px;padding:8px 12px;border-radius:6px;cursor:pointer;}
+.nav-tab.active{color:var(--red);background:rgba(232,53,10,.12);border-color:rgba(232,53,10,.3);}
+.nav-addr{font-family:var(--font-mono);font-size:.72rem;color:var(--orange);background:rgba(255,107,26,.1);padding:5px 9px;border-radius:5px;border:1px solid rgba(255,107,26,.3);white-space:nowrap;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border:none;border-radius:6px;font-family:var(--font-body);font-weight:700;font-size:.82rem;letter-spacing:.3px;cursor:pointer;transition:all .15s;text-transform:uppercase;white-space:nowrap;}
+.btn-primary{background:linear-gradient(135deg,var(--red),var(--orange));color:#fff;}
+.btn-primary:hover{opacity:.88;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--orange);color:var(--orange);}
+.btn-sm{padding:6px 10px;font-size:.7rem;}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.page{display:none;padding:80px 0 60px;position:relative;z-index:1;}
+.page.active{display:block;}
+.card{background:rgba(24,24,24,.85);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.info-tip{display:flex;gap:10px;background:rgba(255,107,26,.06);border:1px solid rgba(255,107,26,.2);border-radius:10px;padding:12px 14px;font-size:.78rem;color:var(--muted);line-height:1.5;margin-bottom:16px;}
+.info-tip b{color:var(--text);}
+.price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
+.price-card{background:rgba(24,24,24,.85);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;}
+.price-card .sym{display:flex;align-items:center;justify-content:center;gap:5px;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
+.price-card .sym img{width:14px;height:14px;border-radius:50%;}
+.price-card .val{font-family:var(--font-display);font-size:1.2rem;color:var(--orange);word-break:break-all;}
+.price-card .sub{font-size:.68rem;color:var(--muted);margin-top:2px;}
+label{display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+input{width:100%;padding:11px 12px;background:var(--dark);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-mono);font-size:1rem;}
+input:focus{outline:none;border-color:var(--orange);}
+.swap-box{max-width:460px;margin:0 auto;position:relative;}
+.swap-io{background:var(--dark);border:1px solid var(--border);border-radius:10px;padding:12px 14px;transition:box-shadow .3s;position:relative;}
+.swap-io-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.swap-io-top span{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.swap-io input{background:transparent;border:none;padding:0;font-size:1.4rem;}
+.swap-io input:focus{outline:none;}
+.swap-io-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
+.usd-val{font-size:.72rem;color:var(--muted);font-family:var(--font-mono);}
+.token-picker{display:flex;align-items:center;gap:6px;background:rgba(255,107,26,.1);border:1px solid rgba(255,107,26,.3);color:var(--orange);font-weight:800;font-size:.85rem;padding:6px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap;cursor:pointer;position:relative;user-select:none;}
+.token-picker img{width:18px;height:18px;border-radius:50%;background:#000;object-fit:cover;}
+.token-picker .caret{font-size:.6rem;opacity:.7;}
+.token-menu{display:none;position:absolute;top:calc(100% + 8px);right:0;background:#1c1c1c;border:1px solid var(--border);border-radius:10px;padding:6px;min-width:170px;max-height:280px;overflow-y:auto;box-shadow:0 12px 30px rgba(0,0,0,.5);z-index:20;}
+.token-menu.open{display:block;}
+.token-menu-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:.85rem;color:var(--text);font-weight:600;}
+.token-menu-item:hover{background:rgba(255,107,26,.12);}
+.token-menu-item img{width:20px;height:20px;border-radius:50%;background:#000;object-fit:cover;}
+.token-menu-item .liq-flag{margin-left:auto;font-size:.6rem;color:var(--amber);font-weight:700;}
+.swap-arrow{display:flex;justify-content:center;margin:6px 0;position:relative;z-index:2;}
+.swap-arrow button{width:36px;height:36px;border-radius:10px;background:var(--card);border:1px solid var(--border);color:var(--orange);cursor:pointer;font-size:1.1rem;transition:transform .35s cubic-bezier(.34,1.56,.64,1),border-color .2s;}
+.swap-arrow button:hover{border-color:var(--orange);}
+.swap-arrow button.spin{transform:rotate(180deg);}
+.swap-details{font-size:.76rem;color:var(--muted);margin:12px 0;display:flex;flex-direction:column;gap:5px;}
+.swap-details div{display:flex;justify-content:space-between;gap:10px;}
+.swap-details b{color:var(--text);font-weight:600;text-align:right;word-break:break-all;}
+.route-line{font-size:.72rem;color:var(--orange);text-align:center;margin:2px 0 10px;font-family:var(--font-mono);}
+.tx-status{padding:10px 14px;border-radius:8px;font-size:.8rem;margin-top:12px;display:none;align-items:center;gap:8px;}
+.tx-status.show{display:flex;}
+.tx-pending{background:rgba(255,149,0,.1);color:var(--amber);border:1px solid rgba(255,149,0,.3);}
+.tx-success{background:rgba(34,197,94,.1);color:var(--success);border:1px solid rgba(34,197,94,.3);}
+.tx-error{background:rgba(232,53,10,.1);color:var(--red);border:1px solid rgba(232,53,10,.3);}
+.spinner{width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.progress-track{display:flex;gap:4px;margin-top:10px;}
+.progress-seg{flex:1;height:4px;border-radius:3px;background:var(--border);overflow:hidden;position:relative;}
+.progress-seg .fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,var(--red),var(--orange));border-radius:3px;transition:width .5s ease;}
+.progress-seg.active .fill{width:60%;animation:pulseFill 1.2s ease-in-out infinite;}
+.progress-seg.done .fill{width:100%;animation:none;}
+@keyframes pulseFill{0%,100%{width:35%;}50%{width:75%;}}
+.progress-labels{display:flex;justify-content:space-between;font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:4px;}
+.pulse-once{animation:pulseOnce .5s ease;}
+@keyframes pulseOnce{0%{transform:scale(1);}30%{transform:scale(1.04);color:var(--orange);}100%{transform:scale(1);}}
+.coin-fly{position:absolute;font-size:1.4rem;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;opacity:0;z-index:5;}
+.coin-fly img{width:32px;height:32px;border-radius:50%;}
+.coin-fly.go{animation:coinFly 1s ease-in-out;}
+@keyframes coinFly{0%{opacity:0;transform:translate(-50%,-140%) scale(.6) rotate(0deg);}20%{opacity:1;}50%{transform:translate(-50%,-50%) scale(1.3) rotate(180deg);opacity:1;}80%{opacity:1;}100%{opacity:0;transform:translate(-50%,60%) scale(.6) rotate(360deg);}}
+.slippage-row{display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap;}
+.slip-btn{padding:5px 10px;border-radius:20px;background:var(--dark);border:1px solid var(--border);color:var(--muted);font-size:.7rem;font-weight:700;cursor:pointer;}
+.slip-btn.active{border-color:var(--orange);color:var(--orange);background:rgba(255,107,26,.1);}
+.bridge-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);gap:10px;}
+.bridge-row:last-child{border-bottom:none;}
+.bridge-row .l{font-size:.78rem;color:var(--muted);}
+.bridge-row .r{font-family:var(--font-mono);font-size:.8rem;text-align:right;}
+.addr-link{color:var(--orange);text-decoration:none;}
+.addr-link:hover{text-decoration:underline;}
+.form-group{margin-bottom:14px;}
+.adv-toggle{font-size:.72rem;color:var(--orange);cursor:pointer;text-decoration:underline;margin-bottom:12px;display:inline-block;}
+.adv-panel{display:none;border-top:1px dashed var(--border);margin-top:10px;padding-top:12px;}
+.adv-panel.open{display:block;}
+#toast-container{position:fixed;bottom:20px;right:16px;display:flex;flex-direction:column-reverse;gap:8px;z-index:9999;max-width:min(340px,calc(100vw - 32px));}
+.toast{display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:10px;font-size:.82rem;font-weight:600;background:#14171c;border:1px solid var(--border);border-left:3px solid;box-shadow:0 10px 28px rgba(0,0,0,.45);opacity:0;transform:translateX(24px);transition:all .25s ease;}
+.toast.show{opacity:1;transform:translateX(0);}
+.toast-success{border-left-color:var(--success);color:var(--success);}
+.toast-error{border-left-color:var(--red);color:var(--red);}
+.toast-info{border-left-color:var(--orange);color:var(--orange);}
+.section-title{font-size:1.6rem;margin-bottom:4px;}
+.section-sub{color:var(--muted);font-size:.85rem;margin-bottom:20px;}
+@media (max-width:640px){
+.price-grid{grid-template-columns:1fr;}
+nav{padding:0 10px;}
+.nav-tab{padding:7px 9px;font-size:.7rem;}
+.nav-logo{font-size:1.3rem;}
+}
+</style>
+</head>
+<body>
+<div id="bg-fx">
+<div class="bg-glow g1"></div>
+<div class="bg-glow g2"></div>
+<div class="bg-glow g3"></div>
+<div class="grid-fx"></div>
+<div id="ember-layer"></div>
+</div>
+<nav>
+<div style="display:flex;align-items:center;gap:14px;min-width:0;">
+<div class="nav-logo">HERESY<span>DEX</span></div>
+<div class="nav-tabs">
+<button class="nav-tab active" id="tab-swap" onclick="showPage('swap')">Swap</button>
+<button class="nav-tab" id="tab-bridge" onclick="showPage('bridge')">Bridge</button>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:8px;">
+<span class="nav-addr" id="nav-addr" style="display:none;"></span>
+<button class="btn btn-primary btn-sm" id="btn-connect" onclick="connectWallet()">Connect Wallet</button>
+</div>
+</nav>
+<div id="toast-container"></div>
+
+<!-- ============ SWAP PAGE ============ -->
+<div class="page active" id="page-swap">
+<div class="container">
+<div class="section-title">Swap on The Grotto</div>
+<div class="section-sub">Routed automatically through WHERESY · one signed transaction via HeresyRouter</div>
+
+<div class="info-tip">
+<span>🕯️</span>
+<div><b>Router:</b> <a class="addr-link mono" id="router-link" href="#" target="_blank">0xd087…6b10B</a> on The Grotto. Every token below is only paired against WHERESY on-chain — the router auto-wraps/unwraps native HERESY and hops through WHERESY when needed, so any pair here is one approval + one signed swap. A 1% platform fee applies once per transaction (skipped entirely on pure wrap/unwrap). Tokens marked <span style="color:var(--amber);font-weight:700;">⚠ thin liquidity</span> have low pool depth — expect real price impact on anything but small amounts.</div>
+</div>
+
+<div class="price-grid">
+<div class="price-card">
+<div class="sym"><img id="pc1-icon" src="" alt=""/><span id="pc1-label">$BOB</span></div>
+<div class="val" id="pc1-val">$0.0000</div>
+<div class="sub" id="pc1-sub">via Avax dexscreener ref.</div>
+</div>
+<div class="price-card">
+<div class="sym" id="pc2-label">1 BOB ≈</div>
+<div class="val" id="pc2-val">–</div>
+<div class="sub">at current pool price</div>
+</div>
+<div class="price-card">
+<div class="sym"><img id="pc3-icon" src="" alt=""/>$WHERESY / $HERESY</div>
+<div class="val" id="pc3-val">$0.0000</div>
+<div class="sub">derived from BOB pool</div>
+</div>
+</div>
+
+<div class="card swap-box">
+<div class="coin-fly" id="coin-fly"><img id="coin-fly-img" src="" alt=""/></div>
+
+<div class="swap-io" id="io-from">
+<div class="swap-io-top"><span>You pay</span><span id="bal-from">Balance: –</span></div>
+<div style="display:flex;align-items:center;gap:10px;">
+<input type="number" id="in-amount" placeholder="0.0" oninput="onAmountChange()"/>
+<div class="token-picker" id="from-picker" onclick="toggleTokenMenu('from')">
+<img id="from-picker-icon" src="" alt=""/>
+<span id="from-picker-label">BOB</span>
+<span class="caret">▾</span>
+<div class="token-menu" id="from-menu"></div>
+</div>
+</div>
+<div class="swap-io-bottom"><span class="usd-val" id="usd-from">≈ $0.00</span><span></span></div>
+</div>
+
+<div class="swap-arrow"><button id="flip-btn" onclick="flipDirection()">⇅</button></div>
+
+<div class="swap-io" id="io-to">
+<div class="swap-io-top"><span>You receive (est.)</span><span id="bal-to">Balance: –</span></div>
+<div style="display:flex;align-items:center;gap:10px;">
+<input type="text" id="out-amount" placeholder="0.0" disabled/>
+<div class="token-picker" id="to-picker" onclick="toggleTokenMenu('to')">
+<img id="to-picker-icon" src="" alt=""/>
+<span id="to-picker-label">HERESY</span>
+<span class="caret">▾</span>
+<div class="token-menu" id="to-menu"></div>
+</div>
+</div>
+<div class="swap-io-bottom"><span class="usd-val" id="usd-to">≈ $0.00</span><span></span></div>
+</div>
+
+<div class="route-line" id="route-line"></div>
+
+<div class="slippage-row">
+<span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;">Slippage</span>
+<button class="slip-btn" onclick="setSlippage(0.5,this)">0.5%</button>
+<button class="slip-btn active" onclick="setSlippage(1,this)">1%</button>
+<button class="slip-btn" onclick="setSlippage(3,this)">3%</button>
+<input type="number" id="custom-slip" placeholder="Custom" min="0.01" max="50" step="0.1" style="width:70px;padding:5px 8px;font-size:.7rem;border-radius:20px;" oninput="setCustomSlippage(this.value)"/>
+<span style="font-size:.7rem;color:var(--muted);">%</span>
+</div>
+
+
+<div class="swap-details">
+<div><span>Rate</span><b id="det-price">–</b></div>
+<div><span>Price impact</span><b id="det-impact">–</b></div>
+<div><span>Min. received</span><b id="det-min">–</b></div>
+<div><span>Platform fee</span><b id="det-fee">–</b></div>
+</div>
+
+<button class="btn btn-primary" style="width:100%;margin-top:8px;" id="btn-swap" onclick="doSwap()">Connect Wallet</button>
+
+<div class="progress-track" id="progress-track" style="display:none;">
+<div class="progress-seg" id="seg-1"><div class="fill"></div></div>
+<div class="progress-seg" id="seg-2"><div class="fill"></div></div>
+</div>
+<div class="progress-labels" id="progress-labels" style="display:none;">
+<span>Approve</span><span>Swap</span>
+</div>
+<div id="tx-swap" class="tx-status"></div>
+</div>
+
+</div>
+</div>
+
+<!-- ============ BRIDGE PAGE ============ -->
+<div class="page" id="page-bridge">
+<div class="container">
+<div class="section-title">Bridge $BOB</div>
+<div class="section-sub">The Grotto L1 ⇄ Avalanche C-Chain via Avalanche Interchain Token Transfer (ICTT)</div>
+
+<div class="info-tip">
+<span>🌉</span>
+<div>
+This sends a real <span class="mono">send()</span> transaction to the ERC20TokenHome contract, using the standard ICTT ABI and a destination blockchain ID read live from Avalanche's Warp precompile (not hardcoded). Built from the public ICTT spec plus your own successful bridge tx trace, but not pulled from the official frontend's source — <b>test with a small amount first.</b> If anything looks off, use <b>Open Official Bridge</b> instead.
+</div>
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+<div class="bridge-row">
+<div class="l">Your $BOB — The Grotto</div>
+<div class="r" id="bal-bob-grotto">–</div>
+</div>
+<div class="bridge-row">
+<div class="l">Your $BOB — Avalanche C-Chain</div>
+<div class="r" id="bal-bob-avax">–</div>
+</div>
+</div>
+
+<div class="card swap-box" style="margin-bottom:16px;">
+<div class="form-group">
+<label>Amount to bridge (Grotto → Avalanche)</label>
+<input type="number" id="bridge-amount" placeholder="0.0"/>
+</div>
+<div class="form-group">
+<label>Recipient on Avalanche</label>
+<input type="text" id="bridge-recipient" placeholder="0x… (defaults to your connected wallet)"/>
+</div>
+<span class="adv-toggle" onclick="toggleAdvanced()">Advanced settings ▾</span>
+<div class="adv-panel" id="adv-panel">
+<div class="form-group">
+<label>Required gas limit (remote execution)</label>
+<input type="number" id="bridge-gaslimit" value="350000"/>
+</div>
+<div class="form-group">
+<label>Relayer fee, in $BOB (0 = no fee)</label>
+<input type="number" id="bridge-fee" value="0"/>
+</div>
+</div>
+<button class="btn btn-primary" style="width:100%;margin-top:8px;" id="btn-bridge" onclick="doBridge()">Connect Wallet</button>
+<div id="tx-bridge" class="tx-status"></div>
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+<div class="bridge-row">
+<div class="l">$BOB — The Grotto (underlying, 700M fixed supply)</div>
+<div class="r"><a class="addr-link" href="https://grottoexplorer.xyz/token/0x06057d79dBC506f7c0803F052E6c823AA4A25dEA" target="_blank">0x0605…5dEA ↗</a></div>
+</div>
+<div class="bridge-row">
+<div class="l">ERC20TokenHome — Grotto (custody)</div>
+<div class="r"><a class="addr-link" href="https://grottoexplorer.xyz/address/0x362c34d5df39458be2fe3a2f132dd45f0f4189a3" target="_blank">0x362c…89a3 ↗</a></div>
+</div>
+<div class="bridge-row">
+<div class="l">ERC20TokenRemote — Avalanche (wrapped $BOB)</div>
+<div class="r"><a class="addr-link" href="https://snowtrace.io/address/0x2f524f453430520ca26e5485017abaa80231c53d" target="_blank">0x2f52…3c53d ↗</a></div>
+</div>
+</div>
+
+<button class="btn btn-ghost" style="width:100%;" onclick="window.open('https://bp.enterthegrotto.xyz/bridge','_blank')">Open Official Bridge ↗</button>
+<button class="btn btn-ghost" style="width:100%;margin-top:8px;" onclick="addTokenToWallet()">Add wrapped $BOB to wallet (Avalanche)</button>
+</div>
+</div>
+
+<script>
+// ==================== CONFIG ====================
+const GROTTO_CHAIN_ID = 36463;
+const GROTTO_CHAIN_ID_HEX = '0x' + GROTTO_CHAIN_ID.toString(16);
+const GROTTO_RPC = 'https://subnets.avax.network/thegrotto/mainnet/rpc';
+const GROTTO_EXPLORER = 'https://subnets.avax.network/thegrotto';
+const AVAX_CHAIN_ID_HEX = '0xA86A'; // 43114
+const AVAX_C_RPC = 'https://api.avax.network/ext/bc/C/rpc';
+
+const BOB_GROTTO = '0x06057d79dBC506f7c0803F052E6c823AA4A25dEA';
+const WHERESY_ADDR = '0xfA99B368B5fc1f5a061bc393dFf73BE8a097667D';
+const BOB_HOME_GROTTO = '0x362c34d5df39458be2fe3a2f132dd45f0f4189a3';
+const BOB_REMOTE_AVAX = '0x2f524f453430520ca26e5485017abaa80231c53d';
+const WARP_PRECOMPILE = '0x0200000000000000000000000000000000000005';
+const WARP_ABI = ["function getBlockchainID() view returns (bytes32)"];
+const DEXSCREENER_BOB_AVAX = 'https://api.dexscreener.com/latest/dex/pairs/avalanche/0x200ce172bf316d302d8e38e712fe0d093162b84b';
+
+// Deployed HeresyRouter — see conversation history for the audited source.
+const ROUTER_ADDRESS = '0x84Ba409F78777DA67Efc0795Ad52FE13089DBca5';
+
+// Every token here is paired directly against WHERESY on-chain. Addresses
+// and pool addresses match exactly what was registered via seedInitialPools()
+// on the router — do NOT add tokens here without also calling setPool() on
+// the router first (and vice versa), or the frontend and contract will
+// disagree about what's swappable.
+const TOKENS = {
+  HERESY:  { symbol:'HERESY',  type:'native', address: ethers.ZeroAddress, decimals:18, icon:'https://grottoexplorer.xyz/assets/configs/network_icon.png' },
+  WHERESY: { symbol:'WHERESY', type:'erc20',  address: WHERESY_ADDR,       decimals:18, icon:'https://grottoexplorer.xyz/assets/configs/network_icon.png' },
+  BOB:     { symbol:'BOB',     type:'erc20',  address:'0x06057d79dBC506f7c0803F052E6c823AA4A25dEA', decimals:18, pool:'0xF8602d664840DD329BaEfA8692801D21167D6E69', icon:'https://bp.enterthegrotto.xyz/_next/image?url=%2Fimages%2Fbp-coin.png&w=96&q=75&dpl=dpl_GcjBAnqUhkqnWvG35bbXPrmWxs3t' },
+  CAVE:    { symbol:'CAVE',    type:'erc20',  address:'0x246002aecBcd1B125e87301814Dd259Cb5fa6ED6', decimals:18, pool:'0xE9437aBA09b2a3Ad288C7296B3cF197eE96de045' },
+  EARLY:   { symbol:'EARLY',   type:'erc20',  address:'0x06E5A4c7068993Dc73DbA2C87D92bEEb06B895e3', decimals:18, pool:'0x3Fa08d722D552B7D62f6ef4A6bF5d3C4e8a1D8a9', icon:'https://cave.money/_next/image?url=%2Ftoken_images%2FEARLY.png&w=64&q=75&dpl=dpl_DgKkYSpURTtXetkvnwKQQ2sG8UMn' },
+  USDC:    { symbol:'USDC',    type:'erc20',  address:'0x9B0e6F566a531b8dD500DD51B0250034Ddd58366', decimals:6,  pool:'0xD61246153091D323CDF92650287B91765ea8d910', icon:'https://cave.money/token_images/USDC.svg?dpl=dpl_DgKkYSpURTtXetkvnwKQQ2sG8U' },
+  ANAL:    { symbol:'ANAL',    type:'erc20',  address:'0x44a5163e580CcCe3A1dBe19C13770Bb554d113c4', decimals:18, pool:'0x79cA749Ea2503Fe03A3383fA8229a9be2e84A655', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-ADLogoNew-1769975640567-7204.png&w=64&q=75' },
+  ERNIE:   { symbol:'ERNIE',   type:'erc20',  address:'0x055fA249CFB586fF595FdCAE54E4e454Da346DF0', decimals:18, pool:'0x212218d7d519a556bbd16e3012AC6C9A3DEb8710', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-logo1-1768333994638-5194.png&w=64&q=75' },
+  GREG:    { symbol:'GREG',    type:'erc20',  address:'0x4CEE1f4b3808db3c6f47d521E2AB73c0A2126301', decimals:18, pool:'0xf6414180817a3fba575AfDeD570653Ca814BB191', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-2A15A7DE-4875-4576-99EE-527D20830940-1768673742988-5869.png&w=64&q=75' },
+  SNS:     { symbol:'SNS',     type:'erc20',  address:'0x8f65793a8dB5C31f2Feb5804Ccc65f90Ff52391c', decimals:18, pool:'0x8826325D8Dcb2ebe980D2b7d8F0034b777841825', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-315f1120-8611-4517-9956-daf74e608c60-1779646031273-4970.jpg&w=64&q=75' },
+  UNKOWN:  { symbol:'UNKOWN',  type:'erc20',  address:'0x219F9287ABa63bB0e966e12b7305539CcaDAF218', decimals:18, pool:'0x470E37FC4B15058e96A079B224BebF6Fa960e9e7', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-IMG_6144-1780319275259-2737.jpeg&w=64&q=75' },
+  NPL:     { symbol:'NPL',     type:'erc20',  address:'0x1FB721Afd78175B94a5E66AA8a46Fb024bDFBE39', decimals:18, pool:'0x25968f5055e9220Dd7F6C91f25A9E77A0222b572', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-565F85E0-8EB3-400C-826C-210946BB1502-1768683610308-5531.png&w=64&q=75' },
+};
+
+const ROUTER_ABI = [
+  "function quote(address tokenIn, address tokenOut, uint256 amountIn) view returns (uint256 amountOut, uint256 fee, bool routeExists)",
+  "function swapExactTokensForTokens(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, address to, uint256 deadline) returns (uint256 amountOut)",
+  "function swapExactNativeForTokens(address tokenOut, uint256 amountOutMin, address to, uint256 deadline) payable returns (uint256 amountOut)",
+  "function swapExactTokensForNative(address tokenIn, uint256 amountIn, uint256 amountOutMin, address to, uint256 deadline) returns (uint256 amountOut)"
+];
+
+const ERC20_ABI = [
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
+  "function balanceOf(address) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function transfer(address to, uint256 amount) returns (bool)"
+];
+
+const PAIR_ABI = [
+  "function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)",
+  "function token0() view returns (address)",
+  "function token1() view returns (address)"
+];
+
+const TOKEN_HOME_ABI = [
+  "function send((bytes32 destinationBlockchainID, address destinationTokenTransferrerAddress, address recipient, address primaryFeeTokenAddress, uint256 primaryFee, uint256 secondaryFee, uint256 requiredGasLimit, address multiHopFallback) input, uint256 amount)"
+];
+
+// ==================== STATE ====================
+let provider=null, signer=null, userAddress=null;
+let roProvider = new ethers.JsonRpcProvider(GROTTO_RPC);
+let routerRO = new ethers.Contract(ROUTER_ADDRESS, ROUTER_ABI, roProvider);
+let bobRO = new ethers.Contract(BOB_GROTTO, ERC20_ABI, roProvider);
+let fromKey = 'BOB', toKey = 'HERESY';
+let slippagePct = 1;
+let poolData = {};   // tokenKey => { tokenReserve, wheresyReserve }
+let bobUsd = 0;
+let wheresyUsd = 0;
+let estimateTimer = null;
+const iconCache = {};
+
+document.getElementById('router-link').href = 'https://grottoexplorer.xyz/address/' + ROUTER_ADDRESS;
+document.getElementById('router-link').textContent = ROUTER_ADDRESS.slice(0,6)+'…'+ROUTER_ADDRESS.slice(-4);
+
+function showPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.getElementById('tab-'+p).classList.add('active');
+  if(p==='bridge') refreshBridgeBalances();
+}
+function toggleAdvanced(){ document.getElementById('adv-panel').classList.toggle('open'); }
+function toast(msg,type='info'){
+  const el=document.createElement('div');
+  el.className=`toast toast-${type}`;
+  el.textContent=msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.classList.add('show'),10);
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},3500);
+}
+function setTxStatus(id,msg,type,spinner){
+  const el=document.getElementById(id);
+  el.innerHTML = (spinner? '<span class="spinner"></span>':'') + '<span>'+msg+'</span>';
+  el.className = `tx-status show tx-${type}`;
+}
+function friendlyError(e){
+  const msg = e?.reason || e?.shortMessage || e?.message || String(e);
+  if(/user rejected/i.test(msg)) return 'Transaction rejected.';
+  if(/no route/i.test(msg)) return 'No route available for this pair.';
+  if(/insufficient output/i.test(msg)) return 'Price moved past your slippage tolerance — try again or raise slippage.';
+  if(/insufficient liquidity/i.test(msg)) return 'Not enough liquidity in the pool for this amount.';
+  if(/insufficient/i.test(msg)) return 'Insufficient balance or gas.';
+  return msg.slice(0,200);
+}
+function setProgress(step, state){
+  const seg = document.getElementById('seg-'+step);
+  seg.classList.remove('active','done');
+  if(state) seg.classList.add(state);
+}
+function resetProgress(needsApprove){
+  document.getElementById('progress-track').style.display='flex';
+  document.getElementById('progress-labels').style.display='flex';
+  setProgress(1,''); setProgress(2,'');
+  document.getElementById('seg-1').style.opacity = needsApprove ? '1':'0.25';
+}
+function pulse(el){ el.classList.remove('pulse-once'); void el.offsetWidth; el.classList.add('pulse-once'); }
+function fmtAdaptive(num){
+  if(num===0 || num==null || isNaN(num)) return '0';
+  if(!isFinite(num)) return '–';
+  const abs = Math.abs(num);
+  if(abs >= 1000) return num.toLocaleString(undefined,{maximumFractionDigits:2});
+  if(abs >= 1) return num.toLocaleString(undefined,{maximumFractionDigits:6});
+  const leadingZeros = Math.max(0, -Math.floor(Math.log10(abs)) - 1);
+  const decimals = Math.min(leadingZeros + 5, 18);
+  let s = num.toFixed(decimals);
+  s = s.replace(/0+$/,'').replace(/\.$/,'');
+  return s === '' || s === '-' ? '0' : s;
+}
+function fmtUsd(num){
+  if(!isFinite(num) || num==null) return '$0.00';
+  const abs = Math.abs(num);
+  if(abs===0) return '$0.00';
+  if(abs >= 1) return '$' + num.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  const leadingZeros = Math.max(0, -Math.floor(Math.log10(abs)) - 1);
+  const decimals = Math.min(leadingZeros + 4, 12);
+  return '$' + num.toFixed(decimals).replace(/0+$/,'').replace(/\.$/,'');
+}
+
+// ==================== BACKGROUND FX ====================
+function initEmbers(){
+  const layer = document.getElementById('ember-layer');
+  const n = window.innerWidth < 640 ? 14 : 26;
+  for(let i=0;i<n;i++){
+    const e = document.createElement('div');
+    e.className = 'ember';
+    const size = 3 + Math.random()*7;
+    const left = Math.random()*100;
+    const dur = 9 + Math.random()*10;
+    const delay = Math.random()*dur;
+    const drift = (Math.random()*140-70).toFixed(0)+'px';
+    e.style.width = size+'px';
+    e.style.height = size+'px';
+    e.style.left = left+'%';
+    e.style.setProperty('--drift', drift);
+    e.style.animationDuration = dur+'s';
+    e.style.animationDelay = '-'+delay+'s';
+    layer.appendChild(e);
+  }
+}
+initEmbers();
+
+// ==================== ICONS (generated for tokens without a hosted image) ====================
+function generatedIcon(symbol){
+  const colors=['#E8350A','#FF6B1A','#FF9500','#22C55E','#3B82F6','#A855F7','#EC4899'];
+  let hash=0; for(let i=0;i<symbol.length;i++) hash = symbol.charCodeAt(i) + ((hash<<5)-hash);
+  const color = colors[Math.abs(hash)%colors.length];
+  const letters = symbol.slice(0,2).toUpperCase();
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><circle cx='20' cy='20' r='20' fill='${color}'/><text x='20' y='26' font-family='Barlow,sans-serif' font-size='16' font-weight='800' fill='#0A0A0A' text-anchor='middle'>${letters}</text></svg>`;
+  return 'data:image/svg+xml,'+encodeURIComponent(svg);
+}
+function iconFor(key){
+  const t = TOKENS[key];
+  if(t.icon) return t.icon;
+  if(iconCache[key]) return iconCache[key];
+  return (iconCache[key] = generatedIcon(t.symbol));
+}
+
+// ==================== TOKEN PICKER ====================
+function buildTokenMenu(side){
+  const menu = document.getElementById(side+'-menu');
+  menu.innerHTML = '';
+  Object.keys(TOKENS).forEach(key=>{
+    const t = TOKENS[key];
+    const item = document.createElement('div');
+    item.className = 'token-menu-item';
+    item.innerHTML = `<img src="${iconFor(key)}" alt=""/><span>${key}</span>${t.lowLiq?'<span class="liq-flag">⚠ thin</span>':''}`;
+    item.onclick = (ev)=>{ ev.stopPropagation(); selectToken(side, key); closeAllMenus(); };
+    menu.appendChild(item);
+  });
+}
+function toggleTokenMenu(side){
+  event.stopPropagation();
+  const isOpen = document.getElementById(side+'-menu').classList.contains('open');
+  closeAllMenus();
+  if(!isOpen) document.getElementById(side+'-menu').classList.add('open');
+}
+function closeAllMenus(){
+  document.getElementById('from-menu').classList.remove('open');
+  document.getElementById('to-menu').classList.remove('open');
+}
+document.addEventListener('click', closeAllMenus);
+function selectToken(side, key){
+  if(side==='from'){
+    if(key===toKey){ toKey = fromKey; setPickerUI('to', toKey); }
+    fromKey = key;
+    setPickerUI('from', fromKey);
+  } else {
+    if(key===fromKey){ fromKey = toKey; setPickerUI('from', fromKey); }
+    toKey = key;
+    setPickerUI('to', toKey);
+  }
+  updateRouteLine();
+  updatePriceGrid();
+  updateEstimate();
+  refreshBalances();
+  updateSwapButtonLabel();
+}
+function setPickerUI(side, key){
+  document.getElementById(side+'-picker-label').textContent = key;
+  document.getElementById(side+'-picker-icon').src = iconFor(key);
+}
+
+// ==================== WALLET ====================
+async function connectWallet(){
+  if(!window.ethereum){ toast('No wallet found. Install Core or MetaMask.','error'); return; }
+  try{
+    provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send('eth_requestAccounts',[]);
+    await switchToGrotto();
+    signer = await provider.getSigner();
+    userAddress = await signer.getAddress();
+    document.getElementById('nav-addr').style.display='inline-block';
+    document.getElementById('nav-addr').textContent = userAddress.slice(0,6)+'…'+userAddress.slice(-4);
+    document.getElementById('btn-connect').textContent='Connected';
+    document.getElementById('btn-connect').disabled = true;
+    document.getElementById('btn-bridge').textContent='Bridge $BOB';
+    toast('Wallet connected');
+    refreshBalances();
+    updateSwapButtonLabel();
+  }catch(e){ toast(friendlyError(e),'error'); }
+}
+async function switchToGrotto(){
+  try{
+    await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:GROTTO_CHAIN_ID_HEX}]});
+  }catch(switchError){
+    if(switchError.code===4902){
+      await window.ethereum.request({
+        method:'wallet_addEthereumChain',
+        params:[{
+          chainId:GROTTO_CHAIN_ID_HEX,
+          chainName:'The Grotto',
+          nativeCurrency:{name:'Heresy',symbol:'heresy',decimals:18},
+          rpcUrls:[GROTTO_RPC],
+          blockExplorerUrls:[GROTTO_EXPLORER]
+        }]
+      });
+    } else { throw switchError; }
+  }
+}
+async function addTokenToWallet(){
+  if(!window.ethereum){ toast('No wallet found.','error'); return; }
+  try{
+    await window.ethereum.request({
+      method:'wallet_watchAsset',
+      params:{type:'ERC20',options:{address:BOB_REMOTE_AVAX,symbol:'BOB',decimals:18}}
+    });
+  }catch(e){ toast(friendlyError(e),'error'); }
+}
+
+// ==================== PRICES ====================
+async function refreshPrices(){
+  const entries = Object.entries(TOKENS).filter(([,t])=>t.pool);
+  try{
+    const results = await Promise.all(entries.map(async ([key,t])=>{
+      const pair = new ethers.Contract(t.pool, PAIR_ABI, roProvider);
+      const [reserves, token0] = await Promise.all([pair.getReserves(), pair.token0()]);
+      const tokenIsToken0 = token0.toLowerCase() === t.address.toLowerCase();
+      const rawTok = tokenIsToken0 ? reserves[0] : reserves[1];
+      const rawWheresy = tokenIsToken0 ? reserves[1] : reserves[0];
+      const tokenReserve = parseFloat(ethers.formatUnits(rawTok, t.decimals));
+      const wheresyReserve = parseFloat(ethers.formatUnits(rawWheresy, 18));
+      return [key, { tokenReserve, wheresyReserve }];
+    }));
+    poolData = Object.fromEntries(results);
+  }catch(e){ console.warn('pool reserves load failed', e); }
+
+  try{
+    const res = await fetch(DEXSCREENER_BOB_AVAX);
+    const data = await res.json();
+    const pair = data.pair || (data.pairs && data.pairs[0]);
+    if(pair && pair.priceUsd){
+      bobUsd = parseFloat(pair.priceUsd);
+      if(poolData.BOB && poolData.BOB.tokenReserve>0){
+        const wheresyPerBob = poolData.BOB.wheresyReserve/poolData.BOB.tokenReserve;
+        wheresyUsd = wheresyPerBob>0 ? bobUsd/wheresyPerBob : 0;
+      }
+    }
+  }catch(e){ console.warn('usd price fetch failed', e); }
+
+  updatePriceGrid();
+  updateEstimate();
+}
+function tokenUsd(key){
+  if(key==='BOB') return bobUsd;
+  if(key==='HERESY'||key==='WHERESY') return wheresyUsd;
+  const info = poolData[key];
+  if(!info || info.tokenReserve<=0 || wheresyUsd<=0) return 0;
+  const wheresyPerToken = info.wheresyReserve/info.tokenReserve;
+  return wheresyPerToken*wheresyUsd;
+}
+function updatePriceGrid(){
+  document.getElementById('pc1-icon').src = iconFor(fromKey);
+  document.getElementById('pc1-label').textContent = '$'+fromKey;
+  document.getElementById('pc1-val').textContent = fmtUsd(tokenUsd(fromKey));
+  document.getElementById('pc1-sub').textContent = fromKey==='BOB' ? 'via Avax dexscreener ref.' : 'derived from WHERESY pool';
+
+  document.getElementById('pc2-label').textContent = `1 ${fromKey} ≈`;
+  const rate = quoteRatePreview();
+  document.getElementById('pc2-val').textContent = rate!=null ? `${fmtAdaptive(rate)} ${toKey}` : '–';
+
+  document.getElementById('pc3-icon').src = iconFor('WHERESY');
+  document.getElementById('pc3-val').textContent = fmtUsd(wheresyUsd);
+}
+// cheap local estimate for the price-grid card only (not used for the actual swap quote)
+function quoteRatePreview(){
+  if(fromKey===toKey) return null;
+  const fu = tokenUsd(fromKey), tu = tokenUsd(toKey);
+  if(fu>0 && tu>0) return fu/tu;
+  return null;
+}
+
+// ==================== ROUTING DISPLAY ====================
+function updateRouteLine(){
+  const line = document.getElementById('route-line');
+  if(fromKey===toKey){ line.textContent=''; return; }
+  if((fromKey==='WHERESY'&&toKey==='HERESY')||(fromKey==='HERESY'&&toKey==='WHERESY')){
+    line.textContent = fromKey==='HERESY' ? 'Route: wrap HERESY → WHERESY (1:1, no fee)' : 'Route: unwrap WHERESY → HERESY (1:1, no fee)';
+    return;
+  }
+  const fromHub = fromKey==='WHERESY'||fromKey==='HERESY';
+  const toHub = toKey==='WHERESY'||toKey==='HERESY';
+  if(fromHub || toHub){
+    line.textContent = `Route: ${fromKey} → pool → ${toKey} · via HeresyRouter`;
+  } else {
+    line.textContent = `Route: ${fromKey} → WHERESY → ${toKey} · via HeresyRouter`;
+  }
+}
+function flipDirection(){
+  const btn = document.getElementById('flip-btn');
+  btn.classList.add('spin');
+  setTimeout(()=>btn.classList.remove('spin'),400);
+  const tmp = fromKey; fromKey = toKey; toKey = tmp;
+  setPickerUI('from', fromKey);
+  setPickerUI('to', toKey);
+  document.getElementById('in-amount').value='';
+  document.getElementById('out-amount').value='';
+  updateRouteLine();
+  updatePriceGrid();
+  updateEstimate();
+  refreshBalances();
+  updateSwapButtonLabel();
+}
+function setSlippage(v, btn){
+  slippagePct = v;
+  document.querySelectorAll('.slip-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('custom-slip').value = '';
+  updateEstimate();
+}
+function setCustomSlippage(v){
+  const n = parseFloat(v);
+  if(!v || isNaN(n) || n<=0){ return; }
+  slippagePct = Math.min(n, 50);
+  document.querySelectorAll('.slip-btn').forEach(b=>b.classList.remove('active'));
+  updateEstimate();
+}
+function onAmountChange(){
+  clearTimeout(estimateTimer);
+  estimateTimer = setTimeout(updateEstimate, 300);
+}
+
+function routerAddrFor(key){
+  return TOKENS[key].type==='native' ? ethers.ZeroAddress : TOKENS[key].address;
+}
+
+function estimateImpact(amtIn, amountOut){
+  let info=null, dir=null;
+  if((fromKey==='WHERESY'||fromKey==='HERESY') && poolData[toKey]){ info=poolData[toKey]; dir='out'; }
+  else if((toKey==='WHERESY'||toKey==='HERESY') && poolData[fromKey]){ info=poolData[fromKey]; dir='in'; }
+  if(!info) return fromKey==='WHERESY'||fromKey==='HERESY'||toKey==='WHERESY'||toKey==='HERESY' ? '–' : '~ (2-hop)';
+  let spot;
+  if(dir==='out'){
+    const rate = info.wheresyReserve>0 ? info.tokenReserve/info.wheresyReserve : 0;
+    spot = amtIn*rate;
+  } else {
+    const rate = info.tokenReserve>0 ? info.wheresyReserve/info.tokenReserve : 0;
+    spot = amtIn*rate;
+  }
+  if(spot<=0) return '–';
+  const impact = ((spot-amountOut)/spot)*100;
+  return impact.toFixed(2)+'%';
+}
+
+async function updateEstimate(){
+  const amtIn = parseFloat(document.getElementById('in-amount').value || '0');
+  const outEl = document.getElementById('out-amount');
+
+  if(!amtIn || amtIn<=0 || fromKey===toKey){
+    outEl.value='';
+    document.getElementById('usd-from').textContent='≈ $0.00';
+    document.getElementById('usd-to').textContent='≈ $0.00';
+    document.getElementById('det-price').textContent='–';
+    document.getElementById('det-impact').textContent='–';
+    document.getElementById('det-min').textContent='–';
+    document.getElementById('det-fee').textContent='–';
+    return;
+  }
+
+  document.getElementById('usd-from').textContent = '≈ ' + fmtUsd(amtIn * tokenUsd(fromKey));
+
+  const fromTok = TOKENS[fromKey], toTok = TOKENS[toKey];
+  const amountInWei = ethers.parseUnits(amtIn.toString(), fromTok.decimals);
+
+  let q;
+  try{
+    q = await routerRO.quote(routerAddrFor(fromKey), routerAddrFor(toKey), amountInWei);
+  }catch(e){
+    outEl.value='';
+    document.getElementById('det-impact').textContent='–';
+    return;
+  }
+  const amountOutRaw = q[0], feeRaw = q[1], routeExists = q[2];
+
+  if(!routeExists){
+    outEl.value='';
+    document.getElementById('usd-to').textContent='≈ $0.00';
+    document.getElementById('det-price').textContent='No route';
+    document.getElementById('det-impact').textContent='–';
+    document.getElementById('det-min').textContent='–';
+    document.getElementById('det-fee').textContent='–';
+    return;
+  }
+
+  const amountOut = parseFloat(ethers.formatUnits(amountOutRaw, toTok.decimals));
+  const feeAmt = parseFloat(ethers.formatUnits(feeRaw, fromTok.decimals));
+
+  outEl.value = amountOut>0 ? fmtAdaptive(amountOut) : '';
+  pulse(outEl);
+  document.getElementById('usd-to').textContent = '≈ ' + fmtUsd(amountOut * tokenUsd(toKey));
+
+  const rate = amtIn>0 && amountOut>0 ? amountOut/amtIn : 0;
+  document.getElementById('det-price').textContent = amountOut>0 ? `1 ${fromKey} ≈ ${fmtAdaptive(rate)} ${toKey}` : '–';
+  document.getElementById('det-impact').textContent = amountOut>0 ? estimateImpact(amtIn, amountOut) : '–';
+
+  const minReceived = amountOut * (1 - slippagePct/100);
+  document.getElementById('det-min').textContent = amountOut>0 ? fmtAdaptive(minReceived)+' '+toKey : '–';
+  document.getElementById('det-fee').textContent = feeAmt>0 ? fmtAdaptive(feeAmt)+' '+fromKey+' (1%)' : 'No fee (wrap/unwrap)';
+}
+
+async function getBalance(key){
+  if(!userAddress) return 0;
+  const t = TOKENS[key];
+  try{
+    if(t.type==='native'){
+      const bal = await roProvider.getBalance(userAddress);
+      return parseFloat(ethers.formatUnits(bal, 18));
+    } else {
+      const c = new ethers.Contract(t.address, ERC20_ABI, roProvider);
+      const bal = await c.balanceOf(userAddress);
+      return parseFloat(ethers.formatUnits(bal, t.decimals));
+    }
+  }catch(e){ return 0; }
+}
+async function refreshBalances(){
+  document.getElementById('bal-from').textContent='Balance: –';
+  document.getElementById('bal-to').textContent='Balance: –';
+  if(!userAddress) return;
+  const [fromBal, toBal] = await Promise.all([getBalance(fromKey), getBalance(toKey)]);
+  document.getElementById('bal-from').textContent = 'Balance: ' + fmtAdaptive(fromBal);
+  document.getElementById('bal-to').textContent = 'Balance: ' + fmtAdaptive(toBal);
+}
+function updateSwapButtonLabel(){
+  const btn = document.getElementById('btn-swap');
+  if(!userAddress){ btn.textContent='Connect Wallet'; btn.disabled=false; return; }
+  if(fromKey===toKey){ btn.textContent='Choose different tokens'; btn.disabled=true; return; }
+  btn.textContent = `Swap ${fromKey} → ${toKey}`;
+  btn.disabled=false;
+}
+
+async function doSwap(){
+  if(!userAddress){ connectWallet(); return; }
+  const amtIn = parseFloat(document.getElementById('in-amount').value || '0');
+  if(!amtIn || amtIn<=0){ toast('Enter an amount','error'); return; }
+  if(fromKey===toKey){ toast('Pick two different tokens','error'); return; }
+
+  const fromTok = TOKENS[fromKey], toTok = TOKENS[toKey];
+  const amountInWei = ethers.parseUnits(amtIn.toString(), fromTok.decimals);
+  const fromAddr = routerAddrFor(fromKey), toAddr = routerAddrFor(toKey);
+
+  let q;
+  try{
+    q = await routerRO.quote(fromAddr, toAddr, amountInWei);
+  }catch(e){ toast('Could not fetch a quote — try again','error'); return; }
+
+  const amountOutRaw = q[0], routeExists = q[2];
+  if(!routeExists || amountOutRaw === 0n){
+    toast('No route or not enough liquidity for this amount','error');
+    return;
+  }
+  const slippageBps = BigInt(Math.round((1 - slippagePct/100) * 10000));
+  const amountOutMin = (amountOutRaw * slippageBps) / 10000n;
+
+  const btn = document.getElementById('btn-swap');
+  const coin = document.getElementById('coin-fly');
+  document.getElementById('coin-fly-img').src = iconFor(toKey);
+  btn.disabled = true;
+  coin.classList.add('go');
+
+  const needsApprove = fromTok.type !== 'native';
+  resetProgress(needsApprove);
+  if(!needsApprove) setProgress(1,'done');
+
+  const deadline = Math.floor(Date.now()/1000) + 20*60; // 20 min
+
+  try{
+    if(needsApprove){
+      const erc20 = new ethers.Contract(fromTok.address, ERC20_ABI, signer);
+      const allowance = await erc20.allowance(userAddress, ROUTER_ADDRESS);
+      if(allowance < amountInWei){
+        setProgress(1,'active');
+        setTxStatus('tx-swap', `Approving ${fromKey} for the router (sign in wallet)…`, 'pending', true);
+        const txA = await erc20.approve(ROUTER_ADDRESS, amountInWei);
+        await txA.wait(1);
+      }
+      setProgress(1,'done');
+    }
+
+    setProgress(2,'active');
+    setTxStatus('tx-swap', `Swapping ${fromKey} → ${toKey} (sign in wallet)…`, 'pending', true);
+
+    const routerWrite = new ethers.Contract(ROUTER_ADDRESS, ROUTER_ABI, signer);
+    let tx;
+    if(fromTok.type === 'native'){
+      tx = await routerWrite.swapExactNativeForTokens(toAddr, amountOutMin, userAddress, deadline, { value: amountInWei });
+    } else if(toTok.type === 'native'){
+      tx = await routerWrite.swapExactTokensForNative(fromTok.address, amountInWei, amountOutMin, userAddress, deadline);
+    } else {
+      tx = await routerWrite.swapExactTokensForTokens(fromTok.address, toTok.address, amountInWei, amountOutMin, userAddress, deadline);
+    }
+    await tx.wait(1);
+    setProgress(2,'done');
+
+    setTxStatus('tx-swap','✅ Swap complete!','success');
+    toast('Swap complete 🎉','success');
+    document.getElementById('in-amount').value='';
+    document.getElementById('out-amount').value='';
+    refreshPrices();
+    refreshBalances();
+  }catch(e){
+    setTxStatus('tx-swap','❌ '+friendlyError(e),'error');
+    setProgress(1,''); setProgress(2,'');
+  }finally{
+    btn.disabled = false;
+    setTimeout(()=>coin.classList.remove('go'),1000);
+  }
+}
+
+// ==================== BRIDGE ====================
+async function refreshBridgeBalances(){
+  document.getElementById('bal-bob-grotto').textContent = '–';
+  document.getElementById('bal-bob-avax').textContent = '–';
+  if(!userAddress) return;
+  try{
+    const bal = await bobRO.balanceOf(userAddress);
+    document.getElementById('bal-bob-grotto').textContent = fmtAdaptive(parseFloat(ethers.formatUnits(bal,18))) + ' BOB';
+  }catch(e){}
+  try{
+    const avaxProvider = new ethers.JsonRpcProvider(AVAX_C_RPC);
+    const remote = new ethers.Contract(BOB_REMOTE_AVAX, ERC20_ABI, avaxProvider);
+    const bal = await remote.balanceOf(userAddress);
+    document.getElementById('bal-bob-avax').textContent = fmtAdaptive(parseFloat(ethers.formatUnits(bal,18))) + ' BOB';
+  }catch(e){}
+}
+async function doBridge(){
+  if(!userAddress){ connectWallet(); return; }
+  const amtStr = document.getElementById('bridge-amount').value;
+  const amt = parseFloat(amtStr || '0');
+  if(!amt || amt<=0){ toast('Enter an amount to bridge','error'); return; }
+  const recipientInput = document.getElementById('bridge-recipient').value.trim();
+  const recipient = recipientInput || userAddress;
+  if(!ethers.isAddress(recipient)){ toast('Recipient is not a valid address','error'); return; }
+  const requiredGasLimit = BigInt(document.getElementById('bridge-gaslimit').value || '350000');
+  const feeAmt = parseFloat(document.getElementById('bridge-fee').value || '0');
+
+  const btn = document.getElementById('btn-bridge');
+  btn.disabled = true;
+  try{
+    setTxStatus('tx-bridge','Reading Avalanche C-Chain blockchain ID…','pending',true);
+    const avaxProvider = new ethers.JsonRpcProvider(AVAX_C_RPC);
+    const warpAvax = new ethers.Contract(WARP_PRECOMPILE, WARP_ABI, avaxProvider);
+    const destinationBlockchainID = await warpAvax.getBlockchainID();
+
+    const amountWei = ethers.parseUnits(amt.toString(), 18);
+    const feeWei = ethers.parseUnits(feeAmt.toString(), 18);
+
+    const bobWrite = new ethers.Contract(BOB_GROTTO, ERC20_ABI, signer);
+    const homeWrite = new ethers.Contract(BOB_HOME_GROTTO, TOKEN_HOME_ABI, signer);
+
+    const totalNeeded = amountWei + feeWei;
+    const allowance = await bobWrite.allowance(userAddress, BOB_HOME_GROTTO);
+    if(allowance < totalNeeded){
+      setTxStatus('tx-bridge','Step 1/2 — Approve $BOB for the bridge (sign in wallet)…','pending',true);
+      const txA = await bobWrite.approve(BOB_HOME_GROTTO, totalNeeded);
+      await txA.wait(1);
+    }
+
+    const input = {
+      destinationBlockchainID,
+      destinationTokenTransferrerAddress: BOB_REMOTE_AVAX,
+      recipient,
+      primaryFeeTokenAddress: BOB_GROTTO,
+      primaryFee: feeWei,
+      secondaryFee: 0n,
+      requiredGasLimit,
+      multiHopFallback: ethers.ZeroAddress
+    };
+
+    setTxStatus('tx-bridge','Step 2/2 — Sending across the bridge (sign in wallet)…','pending',true);
+    const tx = await homeWrite.send(input, amountWei);
+    setTxStatus('tx-bridge','Confirming on Grotto — funds arrive on Avalanche shortly after…','pending',true);
+    await tx.wait(1);
+    setTxStatus('tx-bridge','✅ Bridge transaction sent! Wrapped $BOB should land on Avalanche within a couple minutes.','success');
+    toast('Bridge tx sent 🎉','success');
+    document.getElementById('bridge-amount').value='';
+    refreshBridgeBalances();
+  }catch(e){
+    setTxStatus('tx-bridge','❌ '+friendlyError(e)+' — try "Open Official Bridge" instead.','error');
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+// ==================== INIT ====================
+buildTokenMenu('from');
+buildTokenMenu('to');
+setPickerUI('from', fromKey);
+setPickerUI('to', toKey);
+updateRouteLine();
+refreshPrices();
+setInterval(refreshPrices, 20000);
+</script>
+</body>
+</html>
