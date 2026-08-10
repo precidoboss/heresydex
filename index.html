@@ -191,6 +191,20 @@ input:focus{outline:none;border-color:var(--orange);}
 .section-head-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
 .clear-link{font-size:.68rem;color:var(--muted);cursor:pointer;text-decoration:underline;}
 .clear-link:hover{color:var(--red);}
+.holding-actions{display:flex;gap:6px;flex-shrink:0;margin-left:8px;}
+.holding-actions button{padding:6px 10px;font-size:.66rem;border-radius:6px;}
+.tx-onchain-badge{color:var(--muted);background:rgba(255,255,255,.06);}
+.tx-onchain-badge.ok{color:var(--success);background:rgba(34,197,94,.1);}
+.tx-onchain-badge.fail{color:var(--red);background:rgba(232,53,10,.1);}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:380px;width:100%;}
+.modal-card h3{font-family:var(--font-display);font-size:1.2rem;letter-spacing:.5px;margin-bottom:4px;}
+.modal-card .modal-sub{font-size:.76rem;color:var(--muted);margin-bottom:14px;}
+.modal-close-row{display:flex;gap:8px;margin-top:14px;}
+.modal-close-row .btn{flex:1;}
+.max-link{font-size:.66rem;color:var(--orange);cursor:pointer;text-decoration:underline;}
+.onchain-loadmore{width:100%;margin-top:10px;}
 
 @media (max-width:640px){
 .price-grid{grid-template-columns:1fr;}
@@ -443,7 +457,7 @@ This sends a real <span class="mono">send()</span> transaction to the ERC20Token
 <div id="pf-holdings"></div>
 </div>
 
-<div class="card">
+<div class="card" style="margin-bottom:16px;">
 <div class="section-head-row">
 <h3 style="font-family:var(--font-display);font-size:1.1rem;letter-spacing:.5px;">Transaction History</h3>
 <span class="clear-link" id="pf-tx-clear" onclick="clearTxHistory()">Clear</span>
@@ -451,6 +465,40 @@ This sends a real <span class="mono">send()</span> transaction to the ERC20Token
 <div id="pf-tx-list"></div>
 </div>
 
+<div class="card">
+<div class="section-head-row">
+<h3 style="font-family:var(--font-display);font-size:1.1rem;letter-spacing:.5px;">On-Chain Activity</h3>
+<span class="clear-link" onclick="loadOnchainHistory(true)">Refresh ↻</span>
+</div>
+<div class="section-sub" style="margin-bottom:12px;">Pulled live from <a class="addr-link" href="https://grottoexplorer.xyz" target="_blank">grottoexplorer.xyz</a> — every transaction on The Grotto, not just ones made through this app.</div>
+<div id="pf-onchain-list"><div class="portfolio-empty">Connect a wallet to load on-chain history.</div></div>
+<button class="btn btn-ghost onchain-loadmore" id="onchain-loadmore-btn" style="display:none;" onclick="loadOnchainHistory(false)">Load more</button>
+</div>
+
+</div>
+</div>
+</div>
+
+<!-- ============ SEND / TRANSFER MODAL ============ -->
+<div class="modal-overlay" id="send-modal">
+<div class="modal-card">
+<h3>Send <span id="send-modal-sym"></span></h3>
+<div class="modal-sub">Sends directly from your wallet on The Grotto. This is a real on-chain transfer — double check the address.</div>
+<div class="form-group">
+<label>Recipient address</label>
+<input type="text" id="send-recipient" placeholder="0x…"/>
+</div>
+<div class="form-group">
+<div style="display:flex;justify-content:space-between;align-items:center;">
+<label style="margin-bottom:0;">Amount</label>
+<span class="max-link" onclick="fillSendMax()">Max: <span id="send-max-label">0</span></span>
+</div>
+<input type="number" id="send-amount" placeholder="0.0"/>
+</div>
+<div id="send-modal-status" class="tx-status"></div>
+<div class="modal-close-row">
+<button class="btn btn-ghost" onclick="closeSendModal()">Cancel</button>
+<button class="btn btn-primary" id="send-modal-confirm" onclick="submitSend()">Send</button>
 </div>
 </div>
 </div>
@@ -782,20 +830,32 @@ async function addTokenToWallet(){
 
 // ==================== PRICES ====================
 async function refreshPrices(){
+  // Fetch each pool independently — one bad/unresponsive pool (e.g. a newly
+  // added token with a wrong pool address) must not zero out every other
+  // token's price. This used Promise.all before, which meant a single
+  // rejected call blanked out poolData entirely and permanently emptied
+  // the chart (recordPricePoint never fires if usd<=0 for everything).
   const entries = Object.entries(TOKENS).filter(([,t])=>t.pool);
-  try{
-    const results = await Promise.all(entries.map(async ([key,t])=>{
-      const pair = new ethers.Contract(t.pool, PAIR_ABI, roProvider);
-      const [reserves, token0] = await Promise.all([pair.getReserves(), pair.token0()]);
-      const tokenIsToken0 = token0.toLowerCase() === t.address.toLowerCase();
-      const rawTok = tokenIsToken0 ? reserves[0] : reserves[1];
-      const rawWheresy = tokenIsToken0 ? reserves[1] : reserves[0];
-      const tokenReserve = parseFloat(ethers.formatUnits(rawTok, t.decimals));
-      const wheresyReserve = parseFloat(ethers.formatUnits(rawWheresy, 18));
-      return [key, { tokenReserve, wheresyReserve }];
-    }));
-    poolData = Object.fromEntries(results);
-  }catch(e){ console.warn('pool reserves load failed', e); }
+  const settled = await Promise.allSettled(entries.map(async ([key,t])=>{
+    const pair = new ethers.Contract(t.pool, PAIR_ABI, roProvider);
+    const [reserves, token0] = await Promise.all([pair.getReserves(), pair.token0()]);
+    const tokenIsToken0 = token0.toLowerCase() === t.address.toLowerCase();
+    const rawTok = tokenIsToken0 ? reserves[0] : reserves[1];
+    const rawWheresy = tokenIsToken0 ? reserves[1] : reserves[0];
+    const tokenReserve = parseFloat(ethers.formatUnits(rawTok, t.decimals));
+    const wheresyReserve = parseFloat(ethers.formatUnits(rawWheresy, 18));
+    return [key, { tokenReserve, wheresyReserve }];
+  }));
+  settled.forEach((result, i)=>{
+    const key = entries[i][0];
+    if(result.status === 'fulfilled'){
+      poolData[key] = result.value[1];
+    } else {
+      console.warn(`pool reserves load failed for ${key}`, result.reason);
+      // keep any previously-known value rather than deleting it, so a single
+      // flaky RPC call doesn't blank an otherwise-working chart/price
+    }
+  });
 
   try{
     const res = await fetch(DEXSCREENER_BOB_AVAX);
@@ -1364,11 +1424,163 @@ async function refreshPortfolio(){
           <div class="holding-bal">${fmtUsd(r.usd)}</div>
           <div class="holding-usd">@ ${fmtUsd(tokenUsd(r.key))}</div>
         </div>
+        <div class="holding-actions">
+          <button class="btn btn-primary btn-sm" onclick="quickSell('${r.key}')">Sell</button>
+          <button class="btn btn-ghost btn-sm" onclick="openSendModal('${r.key}')">Send</button>
+        </div>
       </div>`;
     }).join('');
   }
 
   renderTxHistory();
+  loadOnchainHistory(true);
+}
+
+// ==================== QUICK SELL ====================
+function quickSell(key){
+  // Jump to the Swap page pre-loaded with this token ready to sell against
+  // HERESY (or WHERESY, if the token being sold IS HERESY), full balance
+  // pre-filled. User still reviews the quote and confirms the swap there —
+  // this never fires a transaction on its own.
+  fromKey = key;
+  toKey = (key === 'HERESY') ? 'WHERESY' : 'HERESY';
+  setPickerUI('from', fromKey);
+  setPickerUI('to', toKey);
+  updateRouteLine();
+  updatePriceGrid();
+  refreshBalances();
+  updateSwapButtonLabel();
+  showPage('swap');
+  getBalance(key).then(bal=>{
+    if(bal>0){
+      document.getElementById('in-amount').value = bal;
+      onAmountChange();
+    }
+  });
+  toast(`Loaded ${key} → ${toKey}. Review and confirm the swap below.`,'info');
+}
+
+// ==================== SEND / TRANSFER ====================
+let sendModalKey = null;
+function openSendModal(key){
+  if(!userAddress){ toast('Connect your wallet first','error'); return; }
+  sendModalKey = key;
+  document.getElementById('send-modal-sym').textContent = key;
+  document.getElementById('send-recipient').value = '';
+  document.getElementById('send-amount').value = '';
+  document.getElementById('send-modal-status').className = 'tx-status';
+  document.getElementById('send-max-label').textContent = '…';
+  getBalance(key).then(bal=>{ document.getElementById('send-max-label').textContent = fmtAdaptive(bal); });
+  document.getElementById('send-modal').classList.add('open');
+}
+function closeSendModal(){
+  document.getElementById('send-modal').classList.remove('open');
+  sendModalKey = null;
+}
+function fillSendMax(){
+  const label = document.getElementById('send-max-label').textContent;
+  if(label && label !== '…') document.getElementById('send-amount').value = label;
+}
+async function submitSend(){
+  if(!sendModalKey || !userAddress) return;
+  const key = sendModalKey;
+  const t = TOKENS[key];
+  const recipient = document.getElementById('send-recipient').value.trim();
+  const amt = parseFloat(document.getElementById('send-amount').value || '0');
+  if(!ethers.isAddress(recipient)){ toast('Enter a valid recipient address','error'); return; }
+  if(!amt || amt<=0){ toast('Enter an amount','error'); return; }
+  const btn = document.getElementById('send-modal-confirm');
+  btn.disabled = true;
+  try{
+    setTxStatus('send-modal-status', `Sending ${key} (sign in wallet)…`, 'pending', true);
+    const amountWei = ethers.parseUnits(amt.toString(), t.decimals);
+    let tx;
+    if(t.type === 'native'){
+      tx = await signer.sendTransaction({ to: recipient, value: amountWei });
+    } else {
+      const erc20 = new ethers.Contract(t.address, ERC20_ABI, signer);
+      tx = await erc20.transfer(recipient, amountWei);
+    }
+    setTxStatus('send-modal-status', 'Confirming on-chain…', 'pending', true);
+    await tx.wait(1);
+    setTxStatus('send-modal-status', '✅ Sent!', 'success');
+    toast(`Sent ${fmtAdaptive(amt)} ${key} 🎉`, 'success');
+    refreshBalances();
+    refreshPortfolio();
+    setTimeout(closeSendModal, 1200);
+  }catch(e){
+    setTxStatus('send-modal-status', '❌ '+friendlyError(e), 'error');
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+// ==================== ON-CHAIN ACTIVITY (Blockscout API) ====================
+const BLOCKSCOUT_API_BASE = 'https://grottoexplorer.xyz/api/v2';
+let onchainNextParams = null;
+let onchainItems = [];
+async function loadOnchainHistory(reset){
+  const listEl = document.getElementById('pf-onchain-list');
+  const moreBtn = document.getElementById('onchain-loadmore-btn');
+  if(!userAddress){
+    listEl.innerHTML = '<div class="portfolio-empty">Connect a wallet to load on-chain history.</div>';
+    moreBtn.style.display = 'none';
+    return;
+  }
+  if(reset){
+    onchainItems = [];
+    onchainNextParams = null;
+    listEl.innerHTML = '<div class="portfolio-empty">Loading on-chain history…</div>';
+  }
+  let url = `${BLOCKSCOUT_API_BASE}/addresses/${userAddress}/transactions`;
+  if(onchainNextParams){
+    const qs = new URLSearchParams(onchainNextParams).toString();
+    url += `?${qs}`;
+  }
+  try{
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('explorer API returned ' + res.status);
+    const data = await res.json();
+    const items = data.items || [];
+    onchainItems = reset ? items : onchainItems.concat(items);
+    onchainNextParams = data.next_page_params || null;
+    renderOnchainHistory();
+    moreBtn.style.display = onchainNextParams ? 'block' : 'none';
+  }catch(e){
+    console.warn('on-chain history load failed', e);
+    if(onchainItems.length === 0){
+      listEl.innerHTML = `<div class="portfolio-empty">Couldn't load on-chain history from the explorer right now. <span class="clear-link" onclick="loadOnchainHistory(true)">Try again</span>, or view it directly on <a class="addr-link" href="https://grottoexplorer.xyz/address/${userAddress}" target="_blank">grottoexplorer.xyz ↗</a>.</div>`;
+    }
+    moreBtn.style.display = 'none';
+  }
+}
+function renderOnchainHistory(){
+  const listEl = document.getElementById('pf-onchain-list');
+  if(onchainItems.length === 0){
+    listEl.innerHTML = '<div class="portfolio-empty">No on-chain transactions found for this address yet.</div>';
+    return;
+  }
+  listEl.innerHTML = onchainItems.map(tx=>{
+    const hash = tx.hash || '';
+    const when = tx.timestamp ? new Date(tx.timestamp).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+    const status = tx.status === 'ok' ? 'ok' : (tx.status === 'error' ? 'fail' : '');
+    const statusLabel = tx.status === 'ok' ? 'Success' : (tx.status === 'error' ? 'Failed' : (tx.result || 'Pending'));
+    const method = tx.method || (tx.tx_types && tx.tx_types[0]) || 'Transfer';
+    const toAddr = tx.to && tx.to.hash ? tx.to.hash : (tx.to || '');
+    const toLabel = tx.to && tx.to.is_contract ? (tx.to.name || 'Contract') : 'Address';
+    const valueEth = tx.value ? (parseFloat(tx.value)/1e18) : 0;
+    return `<div class="tx-row">
+      <div class="tx-icons"><img src="${iconFor('HERESY')}" alt=""/></div>
+      <div class="tx-info">
+        <div class="tx-title">${method}${toAddr?` → ${toLabel} ${toAddr.slice(0,6)}…${toAddr.slice(-4)}`:''}</div>
+        <div class="tx-sub">${when}${valueEth>0?` · ${fmtAdaptive(valueEth)} HERESY`:''}</div>
+      </div>
+      <div class="tx-right">
+        <span class="tx-badge tx-onchain-badge ${status}">${statusLabel}</span><br/>
+        <a class="tx-link" href="https://grottoexplorer.xyz/tx/${hash}" target="_blank">${hash.slice(0,8)}… ↗</a>
+      </div>
+    </div>`;
+  }).join('');
 }
 function renderTxHistory(){
   const listEl = document.getElementById('pf-tx-list');
