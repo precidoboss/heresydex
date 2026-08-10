@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700;900&display=swap" rel="stylesheet"/>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕯️</text></svg>"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
 :root{
 --red:#E8350A; --orange:#FF6B1A; --amber:#FF9500; --black:#0A0A0A; --dark:#111111;
@@ -133,11 +134,71 @@ input:focus{outline:none;border-color:var(--orange);}
 .toast-info{border-left-color:var(--orange);color:var(--orange);}
 .section-title{font-size:1.6rem;margin-bottom:4px;}
 .section-sub{color:var(--muted);font-size:.85rem;margin-bottom:20px;}
+
+/* ===== chart ===== */
+.chart-card{margin-bottom:18px;}
+.chart-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.chart-token{display:flex;align-items:center;gap:10px;}
+.chart-token img{width:30px;height:30px;border-radius:50%;background:#000;object-fit:cover;}
+.chart-token .sym{font-family:var(--font-display);font-size:1.15rem;letter-spacing:.5px;}
+.chart-token .px{font-family:var(--font-mono);font-size:.95rem;color:var(--orange);}
+.chart-change{font-family:var(--font-mono);font-size:.78rem;font-weight:600;padding:3px 8px;border-radius:6px;}
+.chart-change.up{color:var(--success);background:rgba(34,197,94,.1);}
+.chart-change.down{color:var(--red);background:rgba(232,53,10,.1);}
+.chart-change.flat{color:var(--muted);background:rgba(255,255,255,.05);}
+.chart-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.chart-tab{display:flex;align-items:center;gap:5px;background:var(--dark);border:1px solid var(--border);color:var(--muted);font-size:.7rem;font-weight:700;padding:5px 9px 5px 6px;border-radius:20px;cursor:pointer;}
+.chart-tab img{width:15px;height:15px;border-radius:50%;background:#000;object-fit:cover;}
+.chart-tab.active{border-color:var(--orange);color:var(--orange);background:rgba(255,107,26,.1);}
+.chart-range{display:flex;gap:4px;}
+.range-btn{padding:4px 9px;border-radius:20px;background:var(--dark);border:1px solid var(--border);color:var(--muted);font-size:.68rem;font-weight:700;cursor:pointer;}
+.range-btn.active{border-color:var(--orange);color:var(--orange);background:rgba(255,107,26,.1);}
+.chart-wrap{position:relative;height:220px;width:100%;}
+.chart-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.78rem;color:var(--muted);text-align:center;padding:20px;}
+.chart-foot{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-top:8px;}
+
+/* ===== portfolio ===== */
+.portfolio-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:28px 20px;margin-bottom:16px;background:linear-gradient(160deg,rgba(232,53,10,.12),rgba(24,24,24,.85));}
+.portfolio-hero .label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.portfolio-hero .total{font-family:var(--font-display);font-size:2.6rem;background:linear-gradient(135deg,var(--red),var(--amber));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.portfolio-hero .addr{font-family:var(--font-mono);font-size:.78rem;color:var(--orange);margin-top:8px;background:rgba(255,107,26,.1);padding:5px 10px;border-radius:20px;border:1px solid rgba(255,107,26,.3);}
+.portfolio-empty{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 10px;}
+.holding-row{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border);}
+.holding-row:last-child{border-bottom:none;}
+.holding-row img{width:34px;height:34px;border-radius:50%;background:#000;object-fit:cover;flex-shrink:0;}
+.holding-info{flex:1;min-width:0;}
+.holding-sym{font-weight:800;font-size:.9rem;}
+.holding-sub{font-size:.7rem;color:var(--muted);font-family:var(--font-mono);}
+.holding-amounts{text-align:right;flex-shrink:0;}
+.holding-bal{font-family:var(--font-mono);font-size:.85rem;}
+.holding-usd{font-size:.72rem;color:var(--muted);}
+.holding-bar{height:3px;border-radius:2px;background:var(--border);margin-top:6px;overflow:hidden;}
+.holding-bar .fill{height:100%;background:linear-gradient(90deg,var(--red),var(--orange));}
+.tx-row{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border);}
+.tx-row:last-child{border-bottom:none;}
+.tx-icons{display:flex;align-items:center;flex-shrink:0;}
+.tx-icons img{width:26px;height:26px;border-radius:50%;background:#000;object-fit:cover;border:2px solid var(--card);}
+.tx-icons img:last-child{margin-left:-10px;}
+.tx-info{flex:1;min-width:0;}
+.tx-title{font-size:.82rem;font-weight:700;}
+.tx-sub{font-size:.7rem;color:var(--muted);font-family:var(--font-mono);}
+.tx-right{text-align:right;flex-shrink:0;}
+.tx-badge{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:20px;display:inline-block;margin-bottom:3px;}
+.tx-badge.swap{color:var(--orange);background:rgba(255,107,26,.12);}
+.tx-badge.bridge{color:var(--amber);background:rgba(255,149,0,.12);}
+.tx-link{font-size:.68rem;color:var(--muted);text-decoration:none;}
+.tx-link:hover{color:var(--orange);}
+.section-head-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.clear-link{font-size:.68rem;color:var(--muted);cursor:pointer;text-decoration:underline;}
+.clear-link:hover{color:var(--red);}
+
 @media (max-width:640px){
 .price-grid{grid-template-columns:1fr;}
 nav{padding:0 10px;}
 .nav-tab{padding:7px 9px;font-size:.7rem;}
 .nav-logo{font-size:1.3rem;}
+.chart-wrap{height:180px;}
+.portfolio-hero .total{font-size:2rem;}
 }
 </style>
 </head>
@@ -155,6 +216,7 @@ nav{padding:0 10px;}
 <div class="nav-tabs">
 <button class="nav-tab active" id="tab-swap" onclick="showPage('swap')">Swap</button>
 <button class="nav-tab" id="tab-bridge" onclick="showPage('bridge')">Bridge</button>
+<button class="nav-tab" id="tab-portfolio" onclick="showPage('portfolio')">Portfolio</button>
 </div>
 </div>
 <div style="display:flex;align-items:center;gap:8px;">
@@ -190,6 +252,32 @@ nav{padding:0 10px;}
 <div class="sym"><img id="pc3-icon" src="" alt=""/>$WHERESY / $HERESY</div>
 <div class="val" id="pc3-val">$0.0000</div>
 <div class="sub">derived from BOB pool</div>
+</div>
+</div>
+
+<div class="card chart-card">
+<div class="chart-head">
+<div class="chart-token">
+<img id="chart-icon" src="" alt=""/>
+<div>
+<div class="sym" id="chart-sym">BOB</div>
+<div class="px" id="chart-px">$0.0000</div>
+</div>
+</div>
+<span class="chart-change flat" id="chart-change">–</span>
+</div>
+<div class="chart-tabs" id="chart-tabs"></div>
+<div class="chart-wrap">
+<canvas id="price-chart"></canvas>
+<div class="chart-empty" id="chart-empty" style="display:none;">Gathering live price ticks — chart fills in as the pool gets polled. Check back in a bit.</div>
+</div>
+<div class="chart-foot">
+<span id="chart-range-label">Live pool-derived price · updates every 20s</span>
+<div class="chart-range">
+<button class="range-btn" data-r="20" onclick="setChartRange(20,this)">20</button>
+<button class="range-btn" data-r="60" onclick="setChartRange(60,this)">60</button>
+<button class="range-btn active" data-r="0" onclick="setChartRange(0,this)">All</button>
+</div>
 </div>
 </div>
 
@@ -328,6 +416,45 @@ This sends a real <span class="mono">send()</span> transaction to the ERC20Token
 </div>
 </div>
 
+<!-- ============ PORTFOLIO PAGE ============ -->
+<div class="page" id="page-portfolio">
+<div class="container">
+<div class="section-title">Portfolio</div>
+<div class="section-sub">Live balances across every HERESY DEX token, valued in USD · plus your on-app transaction history</div>
+
+<div id="portfolio-disconnected" class="card portfolio-empty">
+🕯️ Connect your wallet to see your holdings and transaction history.
+<div style="margin-top:14px;"><button class="btn btn-primary" onclick="connectWallet()">Connect Wallet</button></div>
+</div>
+
+<div id="portfolio-connected" style="display:none;">
+
+<div class="card portfolio-hero">
+<div class="label">Total Portfolio Value</div>
+<div class="total" id="pf-total">$0.00</div>
+<div class="addr" id="pf-addr">–</div>
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+<div class="section-head-row">
+<h3 style="font-family:var(--font-display);font-size:1.1rem;letter-spacing:.5px;">Holdings</h3>
+<span class="clear-link" onclick="refreshPortfolio()">Refresh ↻</span>
+</div>
+<div id="pf-holdings"></div>
+</div>
+
+<div class="card">
+<div class="section-head-row">
+<h3 style="font-family:var(--font-display);font-size:1.1rem;letter-spacing:.5px;">Transaction History</h3>
+<span class="clear-link" id="pf-tx-clear" onclick="clearTxHistory()">Clear</span>
+</div>
+<div id="pf-tx-list"></div>
+</div>
+
+</div>
+</div>
+</div>
+
 <script>
 // ==================== CONFIG ====================
 const GROTTO_CHAIN_ID = 36463;
@@ -407,6 +534,52 @@ let wheresyUsd = 0;
 let estimateTimer = null;
 const iconCache = {};
 
+// ---- price chart state ----
+const CHART_HISTORY_KEY = 'heresy_price_history_v1';
+const CHART_MAX_POINTS = 500;
+let chartTokenKey = 'BOB';
+let chartRangeMins = 0; // 0 = all
+let priceChart = null;
+let priceHistory = {}; // loaded lazily from localStorage: { SYMBOL: [{t, usd, wheresy}] }
+function loadPriceHistory(){
+  try{ priceHistory = JSON.parse(localStorage.getItem(CHART_HISTORY_KEY) || '{}'); }
+  catch(e){ priceHistory = {}; }
+}
+function savePriceHistory(){
+  try{ localStorage.setItem(CHART_HISTORY_KEY, JSON.stringify(priceHistory)); }catch(e){}
+}
+function recordPricePoint(key, usd, wheresyPrice){
+  if(!isFinite(usd) || usd<=0) return;
+  if(!priceHistory[key]) priceHistory[key] = [];
+  const arr = priceHistory[key];
+  const last = arr[arr.length-1];
+  const now = Date.now();
+  if(last && now - last.t < 15000) return; // avoid dupes if refreshPrices fires twice quickly
+  arr.push({ t: now, usd, wheresy: wheresyPrice });
+  if(arr.length > CHART_MAX_POINTS) arr.splice(0, arr.length - CHART_MAX_POINTS);
+}
+
+// ---- tx history state ----
+const TX_HISTORY_KEY_PREFIX = 'heresy_tx_history_';
+function txHistoryKey(){ return TX_HISTORY_KEY_PREFIX + (userAddress||'').toLowerCase(); }
+function loadTxHistory(){
+  if(!userAddress) return [];
+  try{ return JSON.parse(localStorage.getItem(txHistoryKey()) || '[]'); }catch(e){ return []; }
+}
+function pushTxHistory(entry){
+  if(!userAddress) return;
+  const list = loadTxHistory();
+  list.unshift(entry);
+  if(list.length > 100) list.length = 100;
+  try{ localStorage.setItem(txHistoryKey(), JSON.stringify(list)); }catch(e){}
+}
+function clearTxHistory(){
+  if(!userAddress) return;
+  if(!confirm('Clear your locally-stored transaction history? This only clears it from this browser — nothing on-chain is affected.')) return;
+  try{ localStorage.removeItem(txHistoryKey()); }catch(e){}
+  renderTxHistory();
+}
+
 document.getElementById('router-link').href = 'https://grottoexplorer.xyz/address/' + ROUTER_ADDRESS;
 document.getElementById('router-link').textContent = ROUTER_ADDRESS.slice(0,6)+'…'+ROUTER_ADDRESS.slice(-4);
 
@@ -416,6 +589,7 @@ function showPage(p){
   document.getElementById('page-'+p).classList.add('active');
   document.getElementById('tab-'+p).classList.add('active');
   if(p==='bridge') refreshBridgeBalances();
+  if(p==='portfolio') refreshPortfolio();
 }
 function toggleAdvanced(){ document.getElementById('adv-panel').classList.toggle('open'); }
 function toast(msg,type='info'){
@@ -575,6 +749,7 @@ async function connectWallet(){
     toast('Wallet connected');
     refreshBalances();
     updateSwapButtonLabel();
+    refreshPortfolio();
   }catch(e){ toast(friendlyError(e),'error'); }
 }
 async function switchToGrotto(){
@@ -635,8 +810,23 @@ async function refreshPrices(){
     }
   }catch(e){ console.warn('usd price fetch failed', e); }
 
+  recordAllPricePoints();
   updatePriceGrid();
   updateEstimate();
+  renderChart();
+}
+function recordAllPricePoints(){
+  Object.keys(TOKENS).forEach(key=>{
+    const usd = tokenUsd(key);
+    let wp; // price in WHERESY terms
+    if(key==='WHERESY'||key==='HERESY') wp = 1;
+    else{
+      const info = poolData[key];
+      wp = (info && info.tokenReserve>0) ? info.wheresyReserve/info.tokenReserve : 0;
+    }
+    if(usd>0) recordPricePoint(key, usd, wp);
+  });
+  savePriceHistory();
 }
 function tokenUsd(key){
   if(key==='BOB') return bobUsd;
@@ -885,15 +1075,25 @@ async function doSwap(){
     } else {
       tx = await routerWrite.swapExactTokensForTokens(fromTok.address, toTok.address, amountInWei, amountOutMin, userAddress, deadline);
     }
-    await tx.wait(1);
+    const receipt = await tx.wait(1);
     setProgress(2,'done');
 
     setTxStatus('tx-swap','✅ Swap complete!','success');
     toast('Swap complete 🎉','success');
+    pushTxHistory({
+      type: 'swap',
+      from: fromKey,
+      to: toKey,
+      amountIn: amtIn,
+      amountOut: parseFloat(ethers.formatUnits(amountOutRaw, toTok.decimals)),
+      hash: receipt?.hash || tx.hash,
+      t: Date.now()
+    });
     document.getElementById('in-amount').value='';
     document.getElementById('out-amount').value='';
     refreshPrices();
     refreshBalances();
+    if(document.getElementById('page-portfolio').classList.contains('active')) refreshPortfolio();
   }catch(e){
     setTxStatus('tx-swap','❌ '+friendlyError(e),'error');
     setProgress(1,''); setProgress(2,'');
@@ -966,16 +1166,248 @@ async function doBridge(){
     setTxStatus('tx-bridge','Step 2/2 — Sending across the bridge (sign in wallet)…','pending',true);
     const tx = await homeWrite.send(input, amountWei);
     setTxStatus('tx-bridge','Confirming on Grotto — funds arrive on Avalanche shortly after…','pending',true);
-    await tx.wait(1);
+    const receipt = await tx.wait(1);
     setTxStatus('tx-bridge','✅ Bridge transaction sent! Wrapped $BOB should land on Avalanche within a couple minutes.','success');
     toast('Bridge tx sent 🎉','success');
+    pushTxHistory({
+      type: 'bridge',
+      amountIn: amt,
+      recipient,
+      hash: receipt?.hash || tx.hash,
+      chain: 'avax-warp',
+      t: Date.now()
+    });
     document.getElementById('bridge-amount').value='';
     refreshBridgeBalances();
+    if(document.getElementById('page-portfolio').classList.contains('active')) refreshPortfolio();
   }catch(e){
     setTxStatus('tx-bridge','❌ '+friendlyError(e)+' — try "Open Official Bridge" instead.','error');
   }finally{
     btn.disabled = false;
   }
+}
+
+// ==================== CHART ====================
+function chartableTokens(){
+  // Any token we can price: HERESY/WHERESY (pegged) + anything with a pool.
+  return Object.keys(TOKENS).filter(k => k==='HERESY' || k==='WHERESY' || TOKENS[k].pool);
+}
+function buildChartTabs(){
+  const wrap = document.getElementById('chart-tabs');
+  wrap.innerHTML = '';
+  chartableTokens().forEach(key=>{
+    const btn = document.createElement('button');
+    btn.className = 'chart-tab' + (key===chartTokenKey ? ' active' : '');
+    btn.innerHTML = `<img src="${iconFor(key)}" alt=""/><span>${key}</span>`;
+    btn.onclick = ()=> setActiveChartToken(key);
+    wrap.appendChild(btn);
+  });
+}
+function setActiveChartToken(key){
+  chartTokenKey = key;
+  document.querySelectorAll('.chart-tab').forEach((el,i)=>{
+    el.classList.toggle('active', chartableTokens()[i]===key);
+  });
+  renderChart();
+}
+function setChartRange(mins, btn){
+  chartRangeMins = mins;
+  document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderChart();
+}
+function filteredHistory(key){
+  const arr = priceHistory[key] || [];
+  if(!chartRangeMins) return arr;
+  const cutoff = Date.now() - chartRangeMins*60*1000;
+  return arr.filter(p=>p.t >= cutoff);
+}
+function renderChart(){
+  if(typeof Chart === 'undefined') return;
+  const key = chartTokenKey;
+  const t = TOKENS[key];
+  if(!t) return;
+  document.getElementById('chart-icon').src = iconFor(key);
+  document.getElementById('chart-sym').textContent = key;
+  const curUsd = tokenUsd(key);
+  document.getElementById('chart-px').textContent = fmtUsd(curUsd);
+
+  const data = filteredHistory(key);
+  const empty = document.getElementById('chart-empty');
+  const canvas = document.getElementById('price-chart');
+  const changeEl = document.getElementById('chart-change');
+
+  if(data.length < 2){
+    empty.style.display = 'flex';
+    canvas.style.visibility = 'hidden';
+    changeEl.textContent = '–';
+    changeEl.className = 'chart-change flat';
+    if(priceChart){ priceChart.destroy(); priceChart = null; }
+    return;
+  }
+  empty.style.display = 'none';
+  canvas.style.visibility = 'visible';
+
+  const first = data[0].usd, last = data[data.length-1].usd;
+  const pct = first>0 ? ((last-first)/first)*100 : 0;
+  changeEl.textContent = (pct>=0?'▲ ':'▼ ') + Math.abs(pct).toFixed(2) + '%';
+  changeEl.className = 'chart-change ' + (pct>0.001 ? 'up' : pct<-0.001 ? 'down' : 'flat');
+
+  const labels = data.map(p => new Date(p.t).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));
+  const values = data.map(p => p.usd);
+  const rising = last >= first;
+  const lineColor = rising ? '#22C55E' : '#E8350A';
+
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0,0,0,220);
+  gradient.addColorStop(0, rising ? 'rgba(34,197,94,.35)' : 'rgba(232,53,10,.35)');
+  gradient.addColorStop(1, rising ? 'rgba(34,197,94,0)' : 'rgba(232,53,10,0)');
+
+  if(priceChart){
+    priceChart.data.labels = labels;
+    priceChart.data.datasets[0].data = values;
+    priceChart.data.datasets[0].borderColor = lineColor;
+    priceChart.data.datasets[0].backgroundColor = gradient;
+    priceChart.update('none');
+    return;
+  }
+
+  priceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: lineColor,
+        backgroundColor: gradient,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: '#FF6B1A',
+        pointHoverBorderColor: '#0A0A0A',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#14171c',
+          borderColor: '#2A2A2A',
+          borderWidth: 1,
+          titleColor: '#888888',
+          bodyColor: '#F0F0F0',
+          bodyFont: { family: 'DM Mono' },
+          padding: 10,
+          displayColors: false,
+          callbacks: { label: (c)=> fmtUsd(c.parsed.y) }
+        }
+      },
+      scales: {
+        x: { display: false, grid: { display: false } },
+        y: {
+          display: true,
+          position: 'right',
+          grid: { color: 'rgba(255,255,255,.05)' },
+          ticks: { color: '#888888', font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 5, callback: (v)=> fmtUsd(v) }
+        }
+      }
+    }
+  });
+}
+
+// ==================== PORTFOLIO ====================
+async function refreshPortfolio(){
+  if(!userAddress){
+    document.getElementById('portfolio-disconnected').style.display = 'block';
+    document.getElementById('portfolio-connected').style.display = 'none';
+    return;
+  }
+  document.getElementById('portfolio-disconnected').style.display = 'none';
+  document.getElementById('portfolio-connected').style.display = 'block';
+  document.getElementById('pf-addr').textContent = userAddress.slice(0,6)+'…'+userAddress.slice(-4) + ' · The Grotto';
+
+  const holdingsEl = document.getElementById('pf-holdings');
+  holdingsEl.innerHTML = '<div class="portfolio-empty">Loading balances…</div>';
+
+  const keys = Object.keys(TOKENS);
+  const balances = await Promise.all(keys.map(k => getBalance(k)));
+  const rows = keys.map((key,i)=>{
+    const bal = balances[i];
+    const usd = bal * tokenUsd(key);
+    return { key, bal, usd };
+  }).filter(r => r.bal > 0);
+
+  const total = rows.reduce((s,r)=>s+r.usd, 0);
+  document.getElementById('pf-total').textContent = fmtUsd(total);
+
+  if(rows.length === 0){
+    holdingsEl.innerHTML = '<div class="portfolio-empty">No token balances found on The Grotto for this wallet yet. Swap something to get started.</div>';
+  } else {
+    rows.sort((a,b)=> b.usd - a.usd);
+    const maxUsd = Math.max(...rows.map(r=>r.usd), 0.0001);
+    holdingsEl.innerHTML = rows.map(r=>{
+      const t = TOKENS[r.key];
+      const pct = total>0 ? (r.usd/total*100) : 0;
+      return `<div class="holding-row">
+        <img src="${iconFor(r.key)}" alt=""/>
+        <div class="holding-info">
+          <div class="holding-sym">${r.key}${t.lowLiq?' <span class="liq-flag" style="margin-left:4px;">⚠ thin</span>':''}</div>
+          <div class="holding-sub">${fmtAdaptive(r.bal)} ${r.key} · ${pct.toFixed(1)}% of portfolio</div>
+          <div class="holding-bar"><div class="fill" style="width:${Math.max(pct,1.5)}%;"></div></div>
+        </div>
+        <div class="holding-amounts">
+          <div class="holding-bal">${fmtUsd(r.usd)}</div>
+          <div class="holding-usd">@ ${fmtUsd(tokenUsd(r.key))}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  renderTxHistory();
+}
+function renderTxHistory(){
+  const listEl = document.getElementById('pf-tx-list');
+  if(!userAddress){ listEl.innerHTML=''; return; }
+  const history = loadTxHistory();
+  if(history.length === 0){
+    listEl.innerHTML = '<div class="portfolio-empty">No swaps or bridges made through HERESY DEX yet in this browser. Once you transact, they\'ll show up here with full details.</div>';
+    return;
+  }
+  listEl.innerHTML = history.map(tx=>{
+    const when = new Date(tx.t).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    const explorerBase = tx.chain === 'avax-warp' ? GROTTO_EXPLORER : GROTTO_EXPLORER;
+    const explorerUrl = `${explorerBase}/tx/${tx.hash}`;
+    if(tx.type === 'swap'){
+      return `<div class="tx-row">
+        <div class="tx-icons"><img src="${iconFor(tx.from)}" alt=""/><img src="${iconFor(tx.to)}" alt=""/></div>
+        <div class="tx-info">
+          <div class="tx-title">${fmtAdaptive(tx.amountIn)} ${tx.from} → ${fmtAdaptive(tx.amountOut)} ${tx.to}</div>
+          <div class="tx-sub">${when}</div>
+        </div>
+        <div class="tx-right">
+          <span class="tx-badge swap">Swap</span><br/>
+          <a class="tx-link" href="${explorerUrl}" target="_blank">${tx.hash.slice(0,8)}… ↗</a>
+        </div>
+      </div>`;
+    } else {
+      return `<div class="tx-row">
+        <div class="tx-icons"><img src="${iconFor('BOB')}" alt=""/></div>
+        <div class="tx-info">
+          <div class="tx-title">Bridged ${fmtAdaptive(tx.amountIn)} BOB → Avalanche</div>
+          <div class="tx-sub">${when} · to ${tx.recipient.slice(0,6)}…${tx.recipient.slice(-4)}</div>
+        </div>
+        <div class="tx-right">
+          <span class="tx-badge bridge">Bridge</span><br/>
+          <a class="tx-link" href="${explorerUrl}" target="_blank">${tx.hash.slice(0,8)}… ↗</a>
+        </div>
+      </div>`;
+    }
+  }).join('');
 }
 
 // ==================== INIT ====================
@@ -984,6 +1416,8 @@ buildTokenMenu('to');
 setPickerUI('from', fromKey);
 setPickerUI('to', toKey);
 updateRouteLine();
+loadPriceHistory();
+buildChartTabs();
 refreshPrices();
 setInterval(refreshPrices, 20000);
 </script>
