@@ -411,8 +411,18 @@ Routed through <b>GrottoBridgeHub</b> on Grotto and <b>AvalancheBridgeReceiver</
 
 <div class="form-group" style="margin-top:12px;">
 <label>Final token on Avalanche</label>
-<input type="text" id="sb-final-token" placeholder="0x… token address on Avalanche" oninput="onSbAmountChange()"/>
-<div style="font-size:.7rem;color:var(--muted);margin-top:4px;">Defaults to the bridged asset itself (no auto-swap). Paste a different Avalanche token address to auto-swap into it on arrival.</div>
+<div class="token-picker" id="sb-final-picker" onclick="toggleTokenMenu('sb-final')" style="width:100%;justify-content:space-between;padding:10px 12px;border-radius:8px;">
+<span style="display:flex;align-items:center;gap:8px;">
+<img id="sb-final-picker-icon" src="" alt="" style="width:18px;height:18px;border-radius:50%;"/>
+<span id="sb-final-picker-label">BOB</span>
+</span>
+<span class="caret">▾</span>
+<div class="token-menu" id="sb-final-menu" style="right:auto;left:0;width:100%;"></div>
+</div>
+<div style="font-size:.7rem;color:var(--muted);margin-top:4px;">Defaults to the bridged asset itself (no auto-swap). Pick a different token to auto-swap into it on arrival, or <span class="max-link" onclick="toggleSbCustomFinal()">use a custom address</span>.</div>
+<div class="form-group" id="sb-final-custom-group" style="display:none;margin-top:8px;">
+<input type="text" id="sb-final-token" placeholder="0x… custom token address on Avalanche" oninput="onSbAmountChange()"/>
+</div>
 </div>
 
 <div class="form-group">
@@ -638,6 +648,21 @@ const AVAX_BRIDGE_ASSET = {
   USDC: '0xc2Dc59BdB6C85f80Bf604c7C47598BE1E6c5b3F7',   // USDC_HOME_AVAX
   HERESY: ethers.ZeroAddress                             // native on arrival
 };
+// Real, known tokens on Avalanche C-Chain that the "final token" picker in
+// Swap & Bridge offers directly (decimals + icons so the estimate shown
+// before signing is accurate, not just an assumption).
+const AVAX_TOKENS = {
+  AVAX:   { symbol:'AVAX',   type:'native', address: ethers.ZeroAddress, decimals:18, icon:'https://cave.money/_next/image?url=%2Ftoken_images%2Favax.png&w=48&q=75&dpl=dpl_DgKkYSpURTtXetkvnwKQQ2sG8UMn' },
+  HERESY: { symbol:'HERESY', type:'erc20',  address:'0x432d38F83a50EC77C409D086e97448794cf76dCF', decimals:18, icon:'https://cave.money/_next/image?url=%2Ftoken_images%2FGHERESY.png&w=96&q=75&dpl=dpl_DgKkYSpURTtXetkvnwKQQ2sG8UMn' },
+  CAVE:   { symbol:'CAVE',   type:'erc20',  address:'0xf294Fec63CC1aEE691943f7F17fB5187289bc522', decimals:18, icon:'https://cave.money/caveLogo.png' },
+  USDC:   { symbol:'USDC',   type:'erc20',  address:'0xc2Dc59BdB6C85f80Bf604c7C47598BE1E6c5b3F7', decimals:6,  icon:'https://cave.money/token_images/USDC.svg?dpl=dpl_DgKkYSpURTtXetkvnwKQQ2sG8U' },
+  BOB:    { symbol:'BOB',    type:'erc20',  address:'0x2F524f453430520ca26E5485017aBAA80231C53D', decimals:18, icon:'https://bp.enterthegrotto.xyz/_next/image?url=%2Fimages%2Fbp-coin.png&w=96&q=75&dpl=dpl_GcjBAnqUhkqnWvG35bbXPrmWxs3t' },
+};
+// Which AVAX_TOKENS entry a given "bridge via" token defaults to (i.e. no
+// auto-swap on arrival — just receive the bridged asset). Native HERESY
+// arrives as native AVAX per AvalancheBridgeReceiver's payable path, so it
+// maps to AVAX, not the wrapped "HERESY (ERC20)" token.
+const SB_DEFAULT_FINAL_KEY = { BOB:'BOB', CAVE:'CAVE', USDC:'USDC', HERESY:'AVAX' };
 const HUB_ABI = [
   "function swapAndBridge(address tokenIn, address bridgeToken, uint256 amountIn, uint256 minBridgeAmount, address finalTokenOnDestination, uint256 minFinalAmount) external",
   "function bridgeNativeAndCall(address finalTokenOnDestination, uint256 minFinalAmount) external payable"
@@ -884,6 +909,8 @@ function closeAllMenus(){
   document.getElementById('to-menu').classList.remove('open');
   const sbMenu = document.getElementById('sb-from-menu');
   if(sbMenu) sbMenu.classList.remove('open');
+  const sbFinalMenu = document.getElementById('sb-final-menu');
+  if(sbFinalMenu) sbFinalMenu.classList.remove('open');
 }
 document.addEventListener('click', closeAllMenus);
 function selectToken(side, key){
@@ -943,6 +970,7 @@ function selectSbToken(key){
   updateSbViaVisibility();
   refreshSbBalance();
   updateSbRouteLine();
+  resetSbFinalToken();
   onSbAmountChange();
 }
 function updateSbViaVisibility(){
@@ -951,6 +979,7 @@ function updateSbViaVisibility(){
 function onSbViaChange(){
   sbViaKey = document.getElementById('sb-via-select').value;
   updateSbRouteLine();
+  resetSbFinalToken();
   onSbAmountChange();
 }
 function updateSbRouteLine(){
@@ -967,6 +996,71 @@ async function refreshSbBalance(){
   const bal = await getBalance(sbFromKey);
   document.getElementById('sb-bal-from').textContent = 'Balance: ' + fmtAdaptive(bal);
 }
+
+// ---- Final-token (Avalanche) picker ----
+let sbFinalKey = 'BOB';
+function availableFinalKeys(){
+  // AVAX (native OUT) is only reachable via the receiver's native-in path
+  // (swapExactNativeForTokens is native-in/ERC20-out, never native-out) —
+  // AvalancheBridgeReceiver's ERC20 branch always calls
+  // swapExactTokensForTokens, which can't deliver native AVAX. Offering it
+  // as a target when bridging BOB/CAVE/USDC would silently just fall back
+  // to the raw bridged token instead of AVAX, so hide it in that case.
+  return Object.keys(AVAX_TOKENS).filter(k => k !== 'AVAX' || sbViaKey === 'HERESY');
+}
+function buildSbFinalMenu(){
+  const menu = document.getElementById('sb-final-menu');
+  menu.innerHTML = '';
+  availableFinalKeys().forEach(key=>{
+    const t = AVAX_TOKENS[key];
+    const item = document.createElement('div');
+    item.className = 'token-menu-item';
+    item.innerHTML = `<img src="${t.icon}" alt=""/><span>${key}</span>`;
+    item.onclick = (ev)=>{ ev.stopPropagation(); selectSbFinal(key); closeAllMenus(); };
+    menu.appendChild(item);
+  });
+}
+function selectSbFinal(key){
+  sbFinalKey = key;
+  const t = AVAX_TOKENS[key];
+  document.getElementById('sb-final-picker-label').textContent = key;
+  document.getElementById('sb-final-picker-icon').src = t.icon;
+  // picking from the list overrides any custom address typed in
+  document.getElementById('sb-final-token').value = '';
+  onSbAmountChange();
+}
+function resetSbFinalToken(){
+  const key = SB_DEFAULT_FINAL_KEY[sbViaKey] || 'BOB';
+  document.getElementById('sb-final-custom-group').style.display = 'none';
+  document.getElementById('sb-final-token').value = '';
+  buildSbFinalMenu();
+  selectSbFinal(key);
+}
+function toggleSbCustomFinal(){
+  const grp = document.getElementById('sb-final-custom-group');
+  const opening = grp.style.display === 'none';
+  grp.style.display = opening ? 'block' : 'none';
+  if(opening) document.getElementById('sb-final-token').focus();
+}
+// Resolves { address, decimals, label } for whatever is currently selected —
+// the picker, or a custom address if one's been typed in. For a custom
+// address we read decimals() live off Avalanche rather than assuming 18,
+// so the estimate shown before signing is accurate for any token.
+async function resolveFinalToken(){
+  const raw = document.getElementById('sb-final-token').value.trim();
+  if(raw && ethers.isAddress(raw)){
+    try{
+      const c = new ethers.Contract(raw, ERC20_ABI, avaxRoProvider);
+      const decimals = await c.decimals();
+      return { address: raw, decimals: Number(decimals), label: raw.slice(0,6)+'…'+raw.slice(-4) };
+    }catch(e){
+      return { address: raw, decimals: 18, label: raw.slice(0,6)+'…'+raw.slice(-4), decimalsUnknown: true };
+    }
+  }
+  const t = AVAX_TOKENS[sbFinalKey];
+  return { address: t.address, decimals: t.decimals, label: t.symbol };
+}
+
 function setSbSlippage(v, btn){
   sbSlippagePct = v;
   btn.parentElement.querySelectorAll('.slip-btn').forEach(b=>b.classList.remove('active'));
@@ -984,11 +1078,6 @@ function setSbCustomSlippage(v){
 function onSbAmountChange(){
   clearTimeout(sbEstimateTimer);
   sbEstimateTimer = setTimeout(updateSbEstimate, 300);
-}
-function currentFinalTokenAddr(){
-  const raw = document.getElementById('sb-final-token').value.trim();
-  if(raw && ethers.isAddress(raw)) return raw;
-  return AVAX_BRIDGE_ASSET[sbViaKey]; // default: no auto-swap, receive the bridged asset as-is
 }
 async function updateSbEstimate(){
   const amtStr = document.getElementById('sb-amount').value;
@@ -1020,26 +1109,25 @@ async function updateSbEstimate(){
   document.getElementById('sb-det-bridge').textContent = `${fmtAdaptive(bridgeAmount)} ${sbViaKey}`;
 
   // Leg 2: on Avalanche, bridged asset -> final token (skipped if same asset)
-  const finalTokenAddr = currentFinalTokenAddr();
+  const final = await resolveFinalToken();
   const bridgedAssetAddr = AVAX_BRIDGE_ASSET[sbViaKey];
-  if(finalTokenAddr.toLowerCase() === bridgedAssetAddr.toLowerCase()){
+  if(final.address.toLowerCase() === bridgedAssetAddr.toLowerCase()){
     document.getElementById('sb-det-final').textContent = `${fmtAdaptive(bridgeAmount)} ${sbViaKey} (no swap)`;
     document.getElementById('sb-det-min').textContent = `${fmtAdaptive(bridgeAmount)} ${sbViaKey}`;
     updateSwapBridgeButtonLabel();
     return;
   }
   try{
-    const q = await routerAvaxRO.quote(bridgedAssetAddr, finalTokenAddr, bridgeAmountWei);
+    const q = await routerAvaxRO.quote(bridgedAssetAddr, final.address, bridgeAmountWei);
     if(!q[2]){
       document.getElementById('sb-det-final').textContent = 'No route on Avalanche router — will fall back to raw ' + sbViaKey;
       document.getElementById('sb-det-min').textContent = '–';
     } else {
-      // we don't know the destination token's decimals without an extra
-      // call, so show the raw estimate assuming 18 (most ERC20s) and note it
-      const estOut = parseFloat(ethers.formatUnits(q[0], 18));
+      const estOut = parseFloat(ethers.formatUnits(q[0], final.decimals));
       const minOut = estOut * (1 - sbSlippagePct/100);
-      document.getElementById('sb-det-final').textContent = `≈ ${fmtAdaptive(estOut)} (assumes 18 decimals)`;
-      document.getElementById('sb-det-min').textContent = fmtAdaptive(minOut);
+      const decNote = final.decimalsUnknown ? ' (decimals unverified — assuming 18)' : '';
+      document.getElementById('sb-det-final').textContent = `≈ ${fmtAdaptive(estOut)} ${final.label}${decNote}`;
+      document.getElementById('sb-det-min').textContent = fmtAdaptive(minOut) + ' ' + final.label;
     }
   }catch(e){
     document.getElementById('sb-det-final').textContent = 'Could not reach Avalanche router — will fall back to raw ' + sbViaKey;
@@ -1065,7 +1153,8 @@ async function doSwapAndBridge(){
   const recipientInput = document.getElementById('sb-recipient').value.trim();
   const recipient = recipientInput || userAddress;
   if(!ethers.isAddress(recipient)){ toast('Recipient is not a valid address','error'); return; }
-  const finalTokenAddr = currentFinalTokenAddr();
+  const finalTok = await resolveFinalToken();
+  const finalTokenAddr = finalTok.address;
   if(!ethers.isAddress(finalTokenAddr)){ toast('Enter a valid final token address (or leave it defaulted)','error'); return; }
 
   const fromTok = TOKENS[sbFromKey];
@@ -2002,6 +2091,7 @@ buildSbTokenMenu();
 setPickerUI('sb-from', sbFromKey);
 updateSbViaVisibility();
 updateSbRouteLine();
+resetSbFinalToken();
 loadPriceHistory();
 buildChartTabs();
 refreshPrices();
