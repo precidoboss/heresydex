@@ -365,8 +365,89 @@ nav{padding:0 10px;}
 <!-- ============ BRIDGE PAGE ============ -->
 <div class="page" id="page-bridge">
 <div class="container">
-<div class="section-title">Bridge $BOB</div>
-<div class="section-sub">The Grotto L1 ⇄ Avalanche C-Chain via Avalanche Interchain Token Transfer (ICTT)</div>
+<div class="section-title">Bridge</div>
+<div class="section-sub">The Grotto L1 ⇄ Avalanche C-Chain, with an optional auto-swap on arrival via GrottoBridgeHub</div>
+
+<div class="nav-tabs" style="margin-bottom:16px;">
+<button class="nav-tab active" id="bmode-swapbridge" onclick="setBridgeMode('swapbridge')">Swap &amp; Bridge</button>
+<button class="nav-tab" id="bmode-raw" onclick="setBridgeMode('raw')">Raw Bridge ($BOB only)</button>
+</div>
+
+<!-- ============ SWAP & BRIDGE (GrottoBridgeHub) ============ -->
+<div id="bridge-swapbridge-section">
+
+<div class="info-tip">
+<span>🌉</span>
+<div>
+Routed through <b>GrottoBridgeHub</b> on Grotto and <b>AvalancheBridgeReceiver</b> on Avalanche. You can send any HERESY DEX token — the hub swaps it into BOB, CAVE or USDC on Grotto if needed, bridges that, then the receiver auto-swaps into whatever token you pick on Avalanche via the Avalanche HeresyRouter. <b>If that final swap can't fill your minimum</b> (bad quote, no liquidity, etc.), the receiver contract catches it and simply forwards you the raw bridged asset instead — funds are never stuck, worst case you just don't get the auto-swap. Test with a small amount first.
+</div>
+</div>
+
+<div class="card swap-box" style="margin-bottom:16px;">
+
+<div class="swap-io" id="sb-io-from">
+<div class="swap-io-top"><span>You send (Grotto)</span><span id="sb-bal-from">Balance: –</span></div>
+<div style="display:flex;align-items:center;gap:10px;">
+<input type="number" id="sb-amount" placeholder="0.0" oninput="onSbAmountChange()"/>
+<div class="token-picker" id="sb-from-picker" onclick="toggleTokenMenu('sb-from')">
+<img id="sb-from-picker-icon" src="" alt=""/>
+<span id="sb-from-picker-label">BOB</span>
+<span class="caret">▾</span>
+<div class="token-menu" id="sb-from-menu"></div>
+</div>
+</div>
+</div>
+
+<div class="form-group" id="sb-via-group" style="display:none;margin-top:12px;">
+<label>Bridge via (only BOB / CAVE / USDC have a hardcoded route)</label>
+<select id="sb-via-select" onchange="onSbViaChange()" style="width:100%;padding:11px 12px;background:var(--dark);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-mono);">
+<option value="BOB">BOB</option>
+<option value="CAVE">CAVE</option>
+<option value="USDC">USDC</option>
+</select>
+</div>
+
+<div class="route-line" id="sb-route-line"></div>
+
+<div class="form-group" style="margin-top:12px;">
+<label>Final token on Avalanche</label>
+<input type="text" id="sb-final-token" placeholder="0x… token address on Avalanche" oninput="onSbAmountChange()"/>
+<div style="font-size:.7rem;color:var(--muted);margin-top:4px;">Defaults to the bridged asset itself (no auto-swap). Paste a different Avalanche token address to auto-swap into it on arrival.</div>
+</div>
+
+<div class="form-group">
+<label>Recipient on Avalanche</label>
+<input type="text" id="sb-recipient" placeholder="0x… (defaults to your connected wallet)"/>
+</div>
+
+<div class="slippage-row">
+<span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;">Slippage (both legs)</span>
+<button class="slip-btn" onclick="setSbSlippage(1,this)">1%</button>
+<button class="slip-btn active" onclick="setSbSlippage(2,this)">2%</button>
+<button class="slip-btn" onclick="setSbSlippage(5,this)">5%</button>
+<input type="number" id="sb-custom-slip" placeholder="Custom" min="0.01" max="50" step="0.1" style="width:70px;padding:5px 8px;font-size:.7rem;border-radius:20px;" oninput="setSbCustomSlippage(this.value)"/>
+<span style="font-size:.7rem;color:var(--muted);">%</span>
+</div>
+
+<div class="swap-details">
+<div><span>Bridge amount (after any Grotto swap)</span><b id="sb-det-bridge">–</b></div>
+<div><span>Est. received on Avalanche</span><b id="sb-det-final">–</b></div>
+<div><span>Min. received on Avalanche</span><b id="sb-det-min">–</b></div>
+</div>
+
+<button class="btn btn-primary" style="width:100%;margin-top:8px;" id="btn-swapbridge" onclick="doSwapAndBridge()">Connect Wallet</button>
+<div class="progress-track" id="sb-progress-track" style="display:none;">
+<div class="progress-seg" id="sb-seg-1"><div class="fill"></div></div>
+<div class="progress-seg" id="sb-seg-2"><div class="fill"></div></div>
+</div>
+<div class="progress-labels" id="sb-progress-labels" style="display:none;"><span>Approve</span><span>Bridge</span></div>
+<div id="tx-swapbridge" class="tx-status"></div>
+</div>
+
+</div>
+
+<!-- ============ RAW ICTT BRIDGE (existing, BOB only) ============ -->
+<div id="bridge-raw-section" style="display:none;">
 
 <div class="info-tip">
 <span>🌉</span>
@@ -410,7 +491,21 @@ This sends a real <span class="mono">send()</span> transaction to the ERC20Token
 <div id="tx-bridge" class="tx-status"></div>
 </div>
 
+</div>
+
 <div class="card" style="margin-bottom:16px;">
+<div class="bridge-row">
+<div class="l">GrottoBridgeHub — Grotto</div>
+<div class="r"><a class="addr-link" href="https://grottoexplorer.xyz/address/0x9cA6959c148ec204E1e043E236cA0A29ab946B85" target="_blank">0x9cA6…6B85 ↗</a></div>
+</div>
+<div class="bridge-row">
+<div class="l">AvalancheBridgeReceiver — Avalanche</div>
+<div class="r"><a class="addr-link" href="https://snowtrace.io/address/0xe1181Ae5055D7990EfA30085c15E3E2188426111" target="_blank">0xe118…6111 ↗</a></div>
+</div>
+<div class="bridge-row">
+<div class="l">HeresyRouter — Avalanche</div>
+<div class="r"><a class="addr-link" href="https://snowtrace.io/address/0x2463E8C7b592c6d4f5B4e6207FaF05412605eEdc" target="_blank">0x2463…5eEdc ↗</a></div>
+</div>
 <div class="bridge-row">
 <div class="l">$BOB — The Grotto (underlying, 700M fixed supply)</div>
 <div class="r"><a class="addr-link" href="https://grottoexplorer.xyz/token/0x06057d79dBC506f7c0803F052E6c823AA4A25dEA" target="_blank">0x0605…5dEA ↗</a></div>
@@ -515,10 +610,38 @@ const AVAX_C_RPC = 'https://api.avax.network/ext/bc/C/rpc';
 const BOB_GROTTO = '0x06057d79dBC506f7c0803F052E6c823AA4A25dEA';
 const WHERESY_ADDR = '0xfA99B368B5fc1f5a061bc393dFf73BE8a097667D';
 const BOB_HOME_GROTTO = '0x362c34d5df39458be2fe3a2f132dd45f0f4189a3';
-const BOB_REMOTE_AVAX = '0x2f524f453430520ca26e5485017abaa80231c53d';
+const BOB_REMOTE_AVAX = '0x2F524f453430520ca26E5485017aBAA80231C53D';
 const WARP_PRECOMPILE = '0x0200000000000000000000000000000000000005';
 const WARP_ABI = ["function getBlockchainID() view returns (bytes32)"];
 const DEXSCREENER_BOB_AVAX = 'https://api.dexscreener.com/latest/dex/pairs/avalanche/0x200ce172bf316d302d8e38e712fe0d093162b84b';
+
+// ---- Swap & Bridge (GrottoBridgeHub / AvalancheBridgeReceiver) ----
+// Deployed contracts from GrottoBridgeHub.sol / AvalancheBridgeReceiver.sol.
+const GROTTO_BRIDGE_HUB = '0x9cA6959c148ec204E1e043E236cA0A29ab946B85';   // Grotto
+const AVALANCHE_RECEIVER = '0xe1181Ae5055D7990EfA30085c15E3E2188426111'; // Avalanche
+const HERESY_ROUTER_AVAX = '0x2463E8C7b592c6d4f5B4e6207FaF05412605eEdc'; // Avalanche
+
+// Only BOB, CAVE, USDC and native HERESY are hardcoded bridge routes inside
+// GrottoBridgeHub — matches _homeAndRemote() / the HERESY_HOME branch in
+// GrottoBridgeHub.sol exactly. Anything else has to be swapped into one of
+// these on Grotto first (the hub does that swap for you if you pass a
+// different tokenIn).
+const BRIDGEABLE_KEYS = ['BOB', 'CAVE', 'USDC', 'HERESY'];
+// What the bridged asset is represented as once it lands on Avalanche —
+// taken directly from the *_REMOTE / *_HOME constants in
+// AvalancheBridgeReceiver.sol. HERESY arrives as native AVAX-denominated
+// value (the receiver's native path is `payable`), so it uses the same
+// address(0) sentinel the rest of this app uses for native assets.
+const AVAX_BRIDGE_ASSET = {
+  BOB: '0x2F524f453430520ca26E5485017aBAA80231C53D',   // BOB_REMOTE
+  CAVE: '0xf294Fec63CC1aEE691943f7F17fB5187289bc522',   // CAVE_REMOTE
+  USDC: '0xc2Dc59BdB6C85f80Bf604c7C47598BE1E6c5b3F7',   // USDC_HOME_AVAX
+  HERESY: ethers.ZeroAddress                             // native on arrival
+};
+const HUB_ABI = [
+  "function swapAndBridge(address tokenIn, address bridgeToken, uint256 amountIn, uint256 minBridgeAmount, address finalTokenOnDestination, uint256 minFinalAmount) external",
+  "function bridgeNativeAndCall(address finalTokenOnDestination, uint256 minFinalAmount) external payable"
+];
 
 // Deployed HeresyRouter — see conversation history for the audited source.
 const ROUTER_ADDRESS = '0x84Ba409F78777DA67Efc0795Ad52FE13089DBca5';
@@ -574,6 +697,8 @@ let provider=null, signer=null, userAddress=null;
 let roProvider = new ethers.JsonRpcProvider(GROTTO_RPC);
 let routerRO = new ethers.Contract(ROUTER_ADDRESS, ROUTER_ABI, roProvider);
 let bobRO = new ethers.Contract(BOB_GROTTO, ERC20_ABI, roProvider);
+let avaxRoProvider = new ethers.JsonRpcProvider(AVAX_C_RPC);
+let routerAvaxRO = new ethers.Contract(HERESY_ROUTER_AVAX, ROUTER_ABI, avaxRoProvider);
 let fromKey = 'BOB', toKey = 'HERESY';
 let slippagePct = 1;
 let poolData = {};   // tokenKey => { tokenReserve, wheresyReserve }
@@ -636,7 +761,7 @@ function showPage(p){
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   document.getElementById('tab-'+p).classList.add('active');
-  if(p==='bridge') refreshBridgeBalances();
+  if(p==='bridge'){ refreshBridgeBalances(); refreshSbBalance(); updateSwapBridgeButtonLabel(); }
   if(p==='portfolio') refreshPortfolio();
 }
 function toggleAdvanced(){ document.getElementById('adv-panel').classList.toggle('open'); }
@@ -757,6 +882,8 @@ function toggleTokenMenu(side){
 function closeAllMenus(){
   document.getElementById('from-menu').classList.remove('open');
   document.getElementById('to-menu').classList.remove('open');
+  const sbMenu = document.getElementById('sb-from-menu');
+  if(sbMenu) sbMenu.classList.remove('open');
 }
 document.addEventListener('click', closeAllMenus);
 function selectToken(side, key){
@@ -780,6 +907,247 @@ function setPickerUI(side, key){
   document.getElementById(side+'-picker-icon').src = iconFor(key);
 }
 
+// ==================== SWAP & BRIDGE (GrottoBridgeHub) ====================
+let sbFromKey = 'BOB';
+let sbViaKey = 'BOB';
+let sbSlippagePct = 2;
+let sbEstimateTimer = null;
+const hubWriteFor = ()=> new ethers.Contract(GROTTO_BRIDGE_HUB, HUB_ABI, signer);
+
+function setBridgeMode(mode){
+  document.getElementById('bmode-swapbridge').classList.toggle('active', mode==='swapbridge');
+  document.getElementById('bmode-raw').classList.toggle('active', mode==='raw');
+  document.getElementById('bridge-swapbridge-section').style.display = mode==='swapbridge' ? 'block' : 'none';
+  document.getElementById('bridge-raw-section').style.display = mode==='raw' ? 'block' : 'none';
+  if(mode==='raw') refreshBridgeBalances();
+}
+
+function buildSbTokenMenu(){
+  const menu = document.getElementById('sb-from-menu');
+  menu.innerHTML = '';
+  Object.keys(TOKENS).forEach(key=>{
+    const t = TOKENS[key];
+    const item = document.createElement('div');
+    item.className = 'token-menu-item';
+    item.innerHTML = `<img src="${iconFor(key)}" alt=""/><span>${key}</span>${t.lowLiq?'<span class="liq-flag">⚠ thin</span>':''}`;
+    item.onclick = (ev)=>{ ev.stopPropagation(); selectSbToken(key); closeAllMenus(); };
+    menu.appendChild(item);
+  });
+}
+function selectSbToken(key){
+  sbFromKey = key;
+  setPickerUI('sb-from', key);
+  if(!BRIDGEABLE_KEYS.includes(key)) sbViaKey = 'BOB'; // reset to a valid default
+  else sbViaKey = key;
+  document.getElementById('sb-via-select').value = sbViaKey;
+  updateSbViaVisibility();
+  refreshSbBalance();
+  updateSbRouteLine();
+  onSbAmountChange();
+}
+function updateSbViaVisibility(){
+  document.getElementById('sb-via-group').style.display = BRIDGEABLE_KEYS.includes(sbFromKey) ? 'none' : 'block';
+}
+function onSbViaChange(){
+  sbViaKey = document.getElementById('sb-via-select').value;
+  updateSbRouteLine();
+  onSbAmountChange();
+}
+function updateSbRouteLine(){
+  const line = document.getElementById('sb-route-line');
+  if(sbFromKey === sbViaKey || BRIDGEABLE_KEYS.includes(sbFromKey)){
+    line.textContent = `Route: bridge ${sbViaKey} directly · via GrottoBridgeHub`;
+  } else {
+    line.textContent = `Route: ${sbFromKey} → ${sbViaKey} on Grotto → bridge ${sbViaKey} · via GrottoBridgeHub`;
+  }
+}
+async function refreshSbBalance(){
+  document.getElementById('sb-bal-from').textContent = 'Balance: –';
+  if(!userAddress) return;
+  const bal = await getBalance(sbFromKey);
+  document.getElementById('sb-bal-from').textContent = 'Balance: ' + fmtAdaptive(bal);
+}
+function setSbSlippage(v, btn){
+  sbSlippagePct = v;
+  btn.parentElement.querySelectorAll('.slip-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('sb-custom-slip').value = '';
+  onSbAmountChange();
+}
+function setSbCustomSlippage(v){
+  const n = parseFloat(v);
+  if(!v || isNaN(n) || n<=0) return;
+  sbSlippagePct = Math.min(n, 50);
+  document.getElementById('sb-custom-slip').closest('.slippage-row').querySelectorAll('.slip-btn').forEach(b=>b.classList.remove('active'));
+  onSbAmountChange();
+}
+function onSbAmountChange(){
+  clearTimeout(sbEstimateTimer);
+  sbEstimateTimer = setTimeout(updateSbEstimate, 300);
+}
+function currentFinalTokenAddr(){
+  const raw = document.getElementById('sb-final-token').value.trim();
+  if(raw && ethers.isAddress(raw)) return raw;
+  return AVAX_BRIDGE_ASSET[sbViaKey]; // default: no auto-swap, receive the bridged asset as-is
+}
+async function updateSbEstimate(){
+  const amtStr = document.getElementById('sb-amount').value;
+  const amt = parseFloat(amtStr || '0');
+  const btn = document.getElementById('btn-swapbridge');
+  if(!amt || amt<=0){
+    document.getElementById('sb-det-bridge').textContent = '–';
+    document.getElementById('sb-det-final').textContent = '–';
+    document.getElementById('sb-det-min').textContent = '–';
+    return;
+  }
+  const fromTok = TOKENS[sbFromKey];
+  const amountInWei = ethers.parseUnits(amt.toString(), fromTok.decimals);
+  const viaTok = TOKENS[sbViaKey];
+
+  // Leg 1: on Grotto, tokenIn -> bridgeToken (skipped if they're the same)
+  let bridgeAmountWei = amountInWei;
+  if(sbFromKey !== sbViaKey){
+    try{
+      const q = await routerRO.quote(routerAddrFor(sbFromKey), routerAddrFor(sbViaKey), amountInWei);
+      if(!q[2]){ document.getElementById('sb-det-bridge').textContent = 'No route on Grotto'; document.getElementById('sb-det-final').textContent='–'; document.getElementById('sb-det-min').textContent='–'; return; }
+      bridgeAmountWei = q[0];
+    }catch(e){
+      document.getElementById('sb-det-bridge').textContent = 'Quote failed';
+      return;
+    }
+  }
+  const bridgeAmount = parseFloat(ethers.formatUnits(bridgeAmountWei, viaTok.decimals));
+  document.getElementById('sb-det-bridge').textContent = `${fmtAdaptive(bridgeAmount)} ${sbViaKey}`;
+
+  // Leg 2: on Avalanche, bridged asset -> final token (skipped if same asset)
+  const finalTokenAddr = currentFinalTokenAddr();
+  const bridgedAssetAddr = AVAX_BRIDGE_ASSET[sbViaKey];
+  if(finalTokenAddr.toLowerCase() === bridgedAssetAddr.toLowerCase()){
+    document.getElementById('sb-det-final').textContent = `${fmtAdaptive(bridgeAmount)} ${sbViaKey} (no swap)`;
+    document.getElementById('sb-det-min').textContent = `${fmtAdaptive(bridgeAmount)} ${sbViaKey}`;
+    updateSwapBridgeButtonLabel();
+    return;
+  }
+  try{
+    const q = await routerAvaxRO.quote(bridgedAssetAddr, finalTokenAddr, bridgeAmountWei);
+    if(!q[2]){
+      document.getElementById('sb-det-final').textContent = 'No route on Avalanche router — will fall back to raw ' + sbViaKey;
+      document.getElementById('sb-det-min').textContent = '–';
+    } else {
+      // we don't know the destination token's decimals without an extra
+      // call, so show the raw estimate assuming 18 (most ERC20s) and note it
+      const estOut = parseFloat(ethers.formatUnits(q[0], 18));
+      const minOut = estOut * (1 - sbSlippagePct/100);
+      document.getElementById('sb-det-final').textContent = `≈ ${fmtAdaptive(estOut)} (assumes 18 decimals)`;
+      document.getElementById('sb-det-min').textContent = fmtAdaptive(minOut);
+    }
+  }catch(e){
+    document.getElementById('sb-det-final').textContent = 'Could not reach Avalanche router — will fall back to raw ' + sbViaKey;
+    document.getElementById('sb-det-min').textContent = '–';
+  }
+  updateSwapBridgeButtonLabel();
+}
+function updateSwapBridgeButtonLabel(){
+  const btn = document.getElementById('btn-swapbridge');
+  if(!userAddress){ btn.textContent = 'Connect Wallet'; btn.disabled = false; return; }
+  btn.textContent = `Swap & Bridge ${sbFromKey}`;
+  btn.disabled = false;
+}
+function sbSetProgress(step, state){
+  const seg = document.getElementById('sb-seg-'+step);
+  seg.classList.remove('active','done');
+  if(state) seg.classList.add(state);
+}
+async function doSwapAndBridge(){
+  if(!userAddress){ connectWallet(); return; }
+  const amt = parseFloat(document.getElementById('sb-amount').value || '0');
+  if(!amt || amt<=0){ toast('Enter an amount','error'); return; }
+  const recipientInput = document.getElementById('sb-recipient').value.trim();
+  const recipient = recipientInput || userAddress;
+  if(!ethers.isAddress(recipient)){ toast('Recipient is not a valid address','error'); return; }
+  const finalTokenAddr = currentFinalTokenAddr();
+  if(!ethers.isAddress(finalTokenAddr)){ toast('Enter a valid final token address (or leave it defaulted)','error'); return; }
+
+  const fromTok = TOKENS[sbFromKey];
+  const viaTok = TOKENS[sbViaKey];
+  const amountInWei = ethers.parseUnits(amt.toString(), fromTok.decimals);
+
+  // Recompute min-bridge and min-final right before sending, same as the
+  // estimate above, so what gets signed matches what was shown.
+  let bridgeAmountWei = amountInWei;
+  let minBridgeWei = 0n;
+  if(sbFromKey !== sbViaKey){
+    let q;
+    try{ q = await routerRO.quote(routerAddrFor(sbFromKey), routerAddrFor(sbViaKey), amountInWei); }
+    catch(e){ toast('Could not fetch a Grotto-side quote','error'); return; }
+    if(!q[2] || q[0]===0n){ toast(`No route from ${sbFromKey} to ${sbViaKey} on Grotto`,'error'); return; }
+    bridgeAmountWei = q[0];
+    const bps = BigInt(Math.round((1 - sbSlippagePct/100)*10000));
+    minBridgeWei = (bridgeAmountWei * bps) / 10000n;
+  }
+
+  const bridgedAssetAddr = AVAX_BRIDGE_ASSET[sbViaKey];
+  let minFinalWei = 0n; // 0 is safe: worst case the receiver's fallback just forwards the raw bridged asset
+  if(finalTokenAddr.toLowerCase() !== bridgedAssetAddr.toLowerCase()){
+    try{
+      const q2 = await routerAvaxRO.quote(bridgedAssetAddr, finalTokenAddr, bridgeAmountWei);
+      if(q2[2] && q2[0] > 0n){
+        const bps = BigInt(Math.round((1 - sbSlippagePct/100)*10000));
+        minFinalWei = (q2[0] * bps) / 10000n;
+      }
+    }catch(e){ /* leave minFinalWei at 0 — receiver will fall back gracefully if the swap fails */ }
+  }
+
+  const btn = document.getElementById('btn-swapbridge');
+  btn.disabled = true;
+  document.getElementById('sb-progress-track').style.display = 'flex';
+  document.getElementById('sb-progress-labels').style.display = 'flex';
+  sbSetProgress(1,''); sbSetProgress(2,'');
+
+  try{
+    if(sbFromKey === 'HERESY'){
+      // Native path — bridgeNativeAndCall, no approval needed
+      sbSetProgress(1,'done');
+      sbSetProgress(2,'active');
+      setTxStatus('tx-swapbridge', 'Bridging HERESY (sign in wallet)…', 'pending', true);
+      const hub = hubWriteFor();
+      const tx = await hub.bridgeNativeAndCall(finalTokenAddr, minFinalWei, { value: amountInWei });
+      setTxStatus('tx-swapbridge', 'Confirming on Grotto — funds arrive on Avalanche shortly after…', 'pending', true);
+      await tx.wait(1);
+      sbSetProgress(2,'done');
+      setTxStatus('tx-swapbridge', '✅ Bridge transaction sent! Check the recipient address on Avalanche shortly.', 'success');
+      toast('Swap & Bridge sent 🎉','success');
+    } else {
+      // ERC20 path — approve the HUB (not the router), then swapAndBridge
+      const erc20 = new ethers.Contract(fromTok.address, ERC20_ABI, signer);
+      const allowance = await erc20.allowance(userAddress, GROTTO_BRIDGE_HUB);
+      if(allowance < amountInWei){
+        sbSetProgress(1,'active');
+        setTxStatus('tx-swapbridge', `Approving ${sbFromKey} for GrottoBridgeHub (sign in wallet)…`, 'pending', true);
+        const txA = await erc20.approve(GROTTO_BRIDGE_HUB, amountInWei);
+        await txA.wait(1);
+      }
+      sbSetProgress(1,'done');
+      sbSetProgress(2,'active');
+      setTxStatus('tx-swapbridge', `Swapping & bridging ${sbFromKey} (sign in wallet)…`, 'pending', true);
+      const hub = hubWriteFor();
+      const tx = await hub.swapAndBridge(fromTok.address, viaTok.address, amountInWei, minBridgeWei, finalTokenAddr, minFinalWei);
+      setTxStatus('tx-swapbridge', 'Confirming on Grotto — funds arrive on Avalanche shortly after…', 'pending', true);
+      await tx.wait(1);
+      sbSetProgress(2,'done');
+      setTxStatus('tx-swapbridge', '✅ Bridge transaction sent! Check the recipient address on Avalanche shortly.', 'success');
+      toast('Swap & Bridge sent 🎉','success');
+    }
+    document.getElementById('sb-amount').value = '';
+    refreshSbBalance();
+  }catch(e){
+    setTxStatus('tx-swapbridge', '❌ '+friendlyError(e), 'error');
+    sbSetProgress(1,''); sbSetProgress(2,'');
+  }finally{
+    btn.disabled = false;
+  }
+}
+
 // ==================== WALLET ====================
 async function connectWallet(){
   if(!window.ethereum){ toast('No wallet found. Install Core or MetaMask.','error'); return; }
@@ -798,6 +1166,8 @@ async function connectWallet(){
     refreshBalances();
     updateSwapButtonLabel();
     refreshPortfolio();
+    refreshSbBalance();
+    updateSwapBridgeButtonLabel();
   }catch(e){ toast(friendlyError(e),'error'); }
 }
 async function switchToGrotto(){
@@ -1628,6 +1998,10 @@ buildTokenMenu('to');
 setPickerUI('from', fromKey);
 setPickerUI('to', toKey);
 updateRouteLine();
+buildSbTokenMenu();
+setPickerUI('sb-from', sbFromKey);
+updateSbViaVisibility();
+updateSbRouteLine();
 loadPriceHistory();
 buildChartTabs();
 refreshPrices();
