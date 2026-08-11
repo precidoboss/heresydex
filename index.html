@@ -503,6 +503,46 @@ This sends a real <span class="mono">send()</span> transaction to the ERC20Token
 
 </div>
 
+<div class="info-tip">
+<span>🐋</span>
+<div>
+<b>Swap on Avalanche (via KyberSwap)</b> — for whatever lands in your wallet on Avalanche, whether or not HeresyRouter has a pool for it. KyberSwap aggregates every DEX on Avalanche, so it's the fallback when the "no route on Avalanche router" message shows up above. This runs entirely from your own wallet against KyberSwap's public router — it's separate from the bridge contracts.
+</div>
+</div>
+<div class="card swap-box" style="margin-bottom:16px;">
+<div class="swap-io" id="ks-io-from">
+<div class="swap-io-top"><span>You send (Avalanche)</span><span id="ks-bal-from">Balance: –</span></div>
+<div style="display:flex;align-items:center;gap:10px;">
+<input type="number" id="ks-amount" placeholder="0.0" oninput="onKsAmountChange()"/>
+<div class="token-picker" id="ks-from-picker" onclick="toggleTokenMenu('ks-from')">
+<img id="ks-from-picker-icon" src="" alt=""/>
+<span id="ks-from-picker-label">BOB</span>
+<span class="caret">▾</span>
+<div class="token-menu" id="ks-from-menu"></div>
+</div>
+</div>
+</div>
+<div class="swap-io" id="ks-io-to" style="margin-top:10px;">
+<div class="swap-io-top"><span>You receive (est.)</span><span id="ks-out-est">–</span></div>
+<div style="display:flex;align-items:center;gap:10px;">
+<div class="token-picker" id="ks-to-picker" onclick="toggleTokenMenu('ks-to')">
+<img id="ks-to-picker-icon" src="" alt=""/>
+<span id="ks-to-picker-label">HERESY</span>
+<span class="caret">▾</span>
+<div class="token-menu" id="ks-to-menu"></div>
+</div>
+</div>
+</div>
+<div class="slippage-row">
+<span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;">Slippage</span>
+<button class="slip-btn" onclick="setKsSlippage(0.5,this)">0.5%</button>
+<button class="slip-btn active" onclick="setKsSlippage(1,this)">1%</button>
+<button class="slip-btn" onclick="setKsSlippage(3,this)">3%</button>
+</div>
+<button class="btn btn-primary" style="width:100%;margin-top:8px;" id="btn-kyber-swap" onclick="doKyberSwap()">Connect Wallet</button>
+<div id="tx-kyber" class="tx-status"></div>
+</div>
+
 <div class="card" style="margin-bottom:16px;">
 <div class="bridge-row">
 <div class="l">GrottoBridgeHub — Grotto</div>
@@ -510,6 +550,7 @@ This sends a real <span class="mono">send()</span> transaction to the ERC20Token
 </div>
 <div class="bridge-row">
 <div class="l">AvalancheBridgeReceiver — Avalanche</div>
+
 <div class="r"><a class="addr-link" href="https://snowtrace.io/address/0xe1181Ae5055D7990EfA30085c15E3E2188426111" target="_blank">0xe118…6111 ↗</a></div>
 </div>
 <div class="bridge-row">
@@ -667,6 +708,16 @@ const HUB_ABI = [
   "function swapAndBridge(address tokenIn, address bridgeToken, uint256 amountIn, uint256 minBridgeAmount, address finalTokenOnDestination, uint256 minFinalAmount) external",
   "function bridgeNativeAndCall(address finalTokenOnDestination, uint256 minFinalAmount) external payable"
 ];
+// KyberSwap aggregator — used as a fallback swap route on Avalanche only.
+// HeresyRouter (0x2463…5eEdc) only has pools you've explicitly seeded, so
+// pairs like BOB→HERESY(ERC20) can come back "no route" even though real
+// liquidity for both sides exists elsewhere on Avalanche. Kyber aggregates
+// across every DEX on the chain, so it's a real fallback rather than a
+// guess. MetaAggregationRouterV2 is deployed at the same address on every
+// chain Kyber supports (verified independently on Snowtrace/Etherscan).
+const KYBER_ROUTER_AVAX = '0x6131B5fae19EA4f9D964eAc0408E4408b66337b5';
+const KYBER_API_BASE = 'https://aggregator-api.kyberswap.com/avalanche/api/v1';
+const KYBER_NATIVE_SENTINEL = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'; // Kyber's convention for native AVAX, distinct from this app's ZeroAddress convention
 
 // Deployed HeresyRouter — see conversation history for the audited source.
 const ROUTER_ADDRESS = '0x84Ba409F78777DA67Efc0795Ad52FE13089DBca5';
@@ -747,13 +798,20 @@ function savePriceHistory(){
   try{ localStorage.setItem(CHART_HISTORY_KEY, JSON.stringify(priceHistory)); }catch(e){}
 }
 function recordPricePoint(key, usd, wheresyPrice){
-  if(!isFinite(usd) || usd<=0) return;
+  // A valid pool-derived WHERESY price is enough to record a point — we no
+  // longer require a USD figure. USD depends on BOB's own pool + the
+  // dexscreener fetch both succeeding; gating every token's chart on that
+  // meant a single hiccup in that one pipeline (rate limit, RPC blip, wrong
+  // reserve ordering) silently blanked every chart, including tokens like
+  // CAVE whose own CAVE/WHERESY pool read was working fine the whole time.
+  if(!isFinite(wheresyPrice) || wheresyPrice<=0) return;
   if(!priceHistory[key]) priceHistory[key] = [];
   const arr = priceHistory[key];
   const last = arr[arr.length-1];
   const now = Date.now();
   if(last && now - last.t < 15000) return; // avoid dupes if refreshPrices fires twice quickly
-  arr.push({ t: now, usd, wheresy: wheresyPrice });
+  const validUsd = (isFinite(usd) && usd>0) ? usd : null;
+  arr.push({ t: now, usd: validUsd, wheresy: wheresyPrice });
   if(arr.length > CHART_MAX_POINTS) arr.splice(0, arr.length - CHART_MAX_POINTS);
 }
 
@@ -786,7 +844,7 @@ function showPage(p){
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   document.getElementById('tab-'+p).classList.add('active');
-  if(p==='bridge'){ refreshBridgeBalances(); refreshSbBalance(); updateSwapBridgeButtonLabel(); }
+  if(p==='bridge'){ refreshBridgeBalances(); refreshSbBalance(); updateSwapBridgeButtonLabel(); refreshKsBalance(); updateKsButtonLabel(); }
   if(p==='portfolio') refreshPortfolio();
 }
 function toggleAdvanced(){ document.getElementById('adv-panel').classList.toggle('open'); }
@@ -911,6 +969,10 @@ function closeAllMenus(){
   if(sbMenu) sbMenu.classList.remove('open');
   const sbFinalMenu = document.getElementById('sb-final-menu');
   if(sbFinalMenu) sbFinalMenu.classList.remove('open');
+  const ksFromMenu = document.getElementById('ks-from-menu');
+  if(ksFromMenu) ksFromMenu.classList.remove('open');
+  const ksToMenu = document.getElementById('ks-to-menu');
+  if(ksToMenu) ksToMenu.classList.remove('open');
 }
 document.addEventListener('click', closeAllMenus);
 function selectToken(side, key){
@@ -1079,6 +1141,30 @@ function onSbAmountChange(){
   clearTimeout(sbEstimateTimer);
   sbEstimateTimer = setTimeout(updateSbEstimate, 300);
 }
+async function noteKyberFallback(viaKey, final, amountWei){
+  // Called when HeresyRouter has no pool for the bridged asset → final
+  // token. The bridge contract itself can only call HeresyRouter (that's
+  // baked into the immutable AvalancheBridgeReceiver), so this can't change
+  // what happens on-chain during the bridge — but it tells you whether
+  // KyberSwap could finish the swap for you afterward, using the "Swap on
+  // Avalanche" panel further down the page.
+  try{
+    const bridgedKey = SB_DEFAULT_FINAL_KEY[viaKey] || viaKey;
+    const tokenInAddr = ksAddr(bridgedKey);
+    const url = `${KYBER_API_BASE}/routes?tokenIn=${tokenInAddr}&tokenOut=${final.address}&amountIn=${amountWei.toString()}`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const summary = json && json.data && json.data.routeSummary;
+    if(summary){
+      const out = parseFloat(ethers.formatUnits(summary.amountOut, final.decimals));
+      document.getElementById('sb-det-final').textContent = `HeresyRouter has no pool for this, but KyberSwap does (≈ ${fmtAdaptive(out)} ${final.label}). Bridge with the default "no swap" option, then use the Swap on Avalanche (KyberSwap) panel further down to finish the swap yourself.`;
+    } else {
+      document.getElementById('sb-det-final').textContent = `No route on HeresyRouter or KyberSwap for this pair — will fall back to raw ${viaKey}.`;
+    }
+  }catch(e){
+    document.getElementById('sb-det-final').textContent = `No route on HeresyRouter — will fall back to raw ${viaKey}. (Couldn't reach KyberSwap to check further.)`;
+  }
+}
 async function updateSbEstimate(){
   const amtStr = document.getElementById('sb-amount').value;
   const amt = parseFloat(amtStr || '0');
@@ -1120,8 +1206,9 @@ async function updateSbEstimate(){
   try{
     const q = await routerAvaxRO.quote(bridgedAssetAddr, final.address, bridgeAmountWei);
     if(!q[2]){
-      document.getElementById('sb-det-final').textContent = 'No route on Avalanche router — will fall back to raw ' + sbViaKey;
+      document.getElementById('sb-det-final').textContent = 'No route on HeresyRouter — will fall back to raw ' + sbViaKey + '. Checking KyberSwap…';
       document.getElementById('sb-det-min').textContent = '–';
+      await noteKyberFallback(sbViaKey, final, bridgeAmountWei);
     } else {
       const estOut = parseFloat(ethers.formatUnits(q[0], final.decimals));
       const minOut = estOut * (1 - sbSlippagePct/100);
@@ -1130,8 +1217,9 @@ async function updateSbEstimate(){
       document.getElementById('sb-det-min').textContent = fmtAdaptive(minOut) + ' ' + final.label;
     }
   }catch(e){
-    document.getElementById('sb-det-final').textContent = 'Could not reach Avalanche router — will fall back to raw ' + sbViaKey;
+    document.getElementById('sb-det-final').textContent = 'Could not reach HeresyRouter — will fall back to raw ' + sbViaKey + '. Checking KyberSwap…';
     document.getElementById('sb-det-min').textContent = '–';
+    await noteKyberFallback(sbViaKey, final, bridgeAmountWei);
   }
   updateSwapBridgeButtonLabel();
 }
@@ -1237,7 +1325,165 @@ async function doSwapAndBridge(){
   }
 }
 
-// ==================== WALLET ====================
+// ==================== SWAP ON AVALANCHE (KyberSwap) ====================
+let ksFromKey = 'BOB';
+let ksToKey = 'HERESY';
+let ksSlippagePct = 1;
+let ksEstimateTimer = null;
+let ksLastRoute = null; // routeSummary from the last successful GET /routes call
+
+function ksAddr(key){
+  const t = AVAX_TOKENS[key];
+  // Kyber uses its own sentinel for native AVAX, not this app's ZeroAddress
+  return t.type==='native' ? KYBER_NATIVE_SENTINEL : t.address;
+}
+function buildKsMenus(){
+  ['ks-from','ks-to'].forEach(side=>{
+    const menu = document.getElementById(side+'-menu');
+    menu.innerHTML = '';
+    Object.keys(AVAX_TOKENS).forEach(key=>{
+      const t = AVAX_TOKENS[key];
+      const item = document.createElement('div');
+      item.className = 'token-menu-item';
+      item.innerHTML = `<img src="${t.icon}" alt=""/><span>${key}</span>`;
+      item.onclick = (ev)=>{ ev.stopPropagation(); (side==='ks-from'?selectKsFrom:selectKsTo)(key); closeAllMenus(); };
+      menu.appendChild(item);
+    });
+  });
+}
+function selectKsFrom(key){
+  if(key===ksToKey){ selectKsTo(ksFromKey); } // swap them rather than allow same-same
+  ksFromKey = key;
+  document.getElementById('ks-from-picker-label').textContent = key;
+  document.getElementById('ks-from-picker-icon').src = AVAX_TOKENS[key].icon;
+  refreshKsBalance();
+  onKsAmountChange();
+}
+function selectKsTo(key){
+  if(key===ksFromKey){ selectKsFrom(ksToKey); }
+  ksToKey = key;
+  document.getElementById('ks-to-picker-label').textContent = key;
+  document.getElementById('ks-to-picker-icon').src = AVAX_TOKENS[key].icon;
+  onKsAmountChange();
+}
+async function refreshKsBalance(){
+  const label = document.getElementById('ks-bal-from');
+  label.textContent = 'Balance: –';
+  if(!userAddress) return;
+  try{
+    const t = AVAX_TOKENS[ksFromKey];
+    let bal;
+    if(t.type==='native'){
+      const raw = await avaxRoProvider.getBalance(userAddress);
+      bal = parseFloat(ethers.formatUnits(raw, 18));
+    } else {
+      const c = new ethers.Contract(t.address, ERC20_ABI, avaxRoProvider);
+      const raw = await c.balanceOf(userAddress);
+      bal = parseFloat(ethers.formatUnits(raw, t.decimals));
+    }
+    label.textContent = 'Balance: ' + fmtAdaptive(bal);
+  }catch(e){ label.textContent = 'Balance: –'; }
+}
+function setKsSlippage(v, btn){
+  ksSlippagePct = v;
+  btn.parentElement.querySelectorAll('.slip-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  onKsAmountChange();
+}
+function onKsAmountChange(){
+  clearTimeout(ksEstimateTimer);
+  ksEstimateTimer = setTimeout(updateKsEstimate, 350);
+}
+async function updateKsEstimate(){
+  const amt = parseFloat(document.getElementById('ks-amount').value || '0');
+  const outEl = document.getElementById('ks-out-est');
+  ksLastRoute = null;
+  if(!amt || amt<=0 || ksFromKey===ksToKey){ outEl.textContent = '–'; updateKsButtonLabel(); return; }
+  const fromTok = AVAX_TOKENS[ksFromKey];
+  const toTok = AVAX_TOKENS[ksToKey];
+  const amountInWei = ethers.parseUnits(amt.toString(), fromTok.decimals).toString();
+  outEl.textContent = 'Fetching quote…';
+  try{
+    const url = `${KYBER_API_BASE}/routes?tokenIn=${ksAddr(ksFromKey)}&tokenOut=${ksAddr(ksToKey)}&amountIn=${amountInWei}`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const summary = json && json.data && json.data.routeSummary;
+    if(!summary){ outEl.textContent = 'No KyberSwap route found'; updateKsButtonLabel(); return; }
+    ksLastRoute = summary;
+    const out = parseFloat(ethers.formatUnits(summary.amountOut, toTok.decimals));
+    outEl.textContent = `≈ ${fmtAdaptive(out)} ${ksToKey}`;
+  }catch(e){
+    outEl.textContent = 'Could not reach KyberSwap';
+  }
+  updateKsButtonLabel();
+}
+function updateKsButtonLabel(){
+  const btn = document.getElementById('btn-kyber-swap');
+  if(!userAddress){ btn.textContent = 'Connect Wallet'; return; }
+  btn.textContent = ksLastRoute ? `Swap ${ksFromKey} → ${ksToKey} on Avalanche` : `Swap on Avalanche`;
+}
+async function doKyberSwap(){
+  if(!userAddress){ connectWallet(); return; }
+  if(!ksLastRoute){ toast('Get a quote first — enter an amount','error'); return; }
+  const btn = document.getElementById('btn-kyber-swap');
+  btn.disabled = true;
+  try{
+    setTxStatus('tx-kyber', 'Switching wallet to Avalanche C-Chain…', 'pending', true);
+    await switchToAvalanche();
+    // Re-derive a signer bound to the now-Avalanche-connected wallet
+    const avaxProvider = new ethers.BrowserProvider(window.ethereum);
+    const avaxSigner = await avaxProvider.getSigner();
+    const fromTok = AVAX_TOKENS[ksFromKey];
+
+    if(fromTok.type !== 'native'){
+      const erc20 = new ethers.Contract(fromTok.address, ERC20_ABI, avaxSigner);
+      const allowance = await erc20.allowance(userAddress, KYBER_ROUTER_AVAX);
+      const amountInWei = BigInt(ksLastRoute.amountIn);
+      if(allowance < amountInWei){
+        setTxStatus('tx-kyber', `Approving ${ksFromKey} for KyberSwap (sign in wallet)…`, 'pending', true);
+        const txA = await erc20.approve(KYBER_ROUTER_AVAX, amountInWei);
+        await txA.wait(1);
+      }
+    }
+
+    setTxStatus('tx-kyber', 'Building route with KyberSwap…', 'pending', true);
+    const buildRes = await fetch(`${KYBER_API_BASE}/route/build`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        routeSummary: ksLastRoute,
+        sender: userAddress,
+        recipient: userAddress,
+        slippageTolerance: Math.round(ksSlippagePct * 100) // bps
+      })
+    });
+    const buildJson = await buildRes.json();
+    const built = buildJson && buildJson.data;
+    if(!built || !built.data){ throw new Error('KyberSwap could not build a transaction for this route'); }
+
+    setTxStatus('tx-kyber', 'Confirm the swap in your wallet…', 'pending', true);
+    const tx = await avaxSigner.sendTransaction({
+      to: built.routerAddress || KYBER_ROUTER_AVAX,
+      data: built.data,
+      value: fromTok.type==='native' ? BigInt(ksLastRoute.amountIn) : 0n
+    });
+    setTxStatus('tx-kyber', 'Confirming on Avalanche…', 'pending', true);
+    await tx.wait(1);
+    setTxStatus('tx-kyber', '✅ Swapped via KyberSwap!', 'success');
+    toast('KyberSwap swap complete 🎉','success');
+    document.getElementById('ks-amount').value = '';
+    ksLastRoute = null;
+    document.getElementById('ks-out-est').textContent = '–';
+    refreshKsBalance();
+  }catch(e){
+    setTxStatus('tx-kyber', '❌ '+friendlyError(e), 'error');
+  }finally{
+    btn.disabled = false;
+    updateKsButtonLabel();
+  }
+}
+
+
 async function connectWallet(){
   if(!window.ethereum){ toast('No wallet found. Install Core or MetaMask.','error'); return; }
   try{
@@ -1257,6 +1503,8 @@ async function connectWallet(){
     refreshPortfolio();
     refreshSbBalance();
     updateSwapBridgeButtonLabel();
+    refreshKsBalance();
+    updateKsButtonLabel();
   }catch(e){ toast(friendlyError(e),'error'); }
 }
 async function switchToGrotto(){
@@ -1272,6 +1520,24 @@ async function switchToGrotto(){
           nativeCurrency:{name:'Heresy',symbol:'heresy',decimals:18},
           rpcUrls:[GROTTO_RPC],
           blockExplorerUrls:[GROTTO_EXPLORER]
+        }]
+      });
+    } else { throw switchError; }
+  }
+}
+async function switchToAvalanche(){
+  try{
+    await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:AVAX_CHAIN_ID_HEX}]});
+  }catch(switchError){
+    if(switchError.code===4902){
+      await window.ethereum.request({
+        method:'wallet_addEthereumChain',
+        params:[{
+          chainId:AVAX_CHAIN_ID_HEX,
+          chainName:'Avalanche C-Chain',
+          nativeCurrency:{name:'Avalanche',symbol:'AVAX',decimals:18},
+          rpcUrls:[AVAX_C_RPC],
+          blockExplorerUrls:['https://snowtrace.io']
         }]
       });
     } else { throw switchError; }
@@ -1337,13 +1603,15 @@ async function refreshPrices(){
 function recordAllPricePoints(){
   Object.keys(TOKENS).forEach(key=>{
     const usd = tokenUsd(key);
-    let wp; // price in WHERESY terms
-    if(key==='WHERESY'||key==='HERESY') wp = 1;
+    let wp; // price in WHERESY terms — the primary signal now, sourced
+            // straight from each token's own pool (e.g. CAVE/WHERESY),
+            // independent of whether the BOB→USD leg is currently working
+    if(key==='WHERESY'||key==='HERESY') wp = 1; // native pair is always 1:1 by definition
     else{
       const info = poolData[key];
       wp = (info && info.tokenReserve>0) ? info.wheresyReserve/info.tokenReserve : 0;
     }
-    if(usd>0) recordPricePoint(key, usd, wp);
+    recordPricePoint(key, usd, wp);
   });
   savePriceHistory();
 }
@@ -1749,7 +2017,7 @@ function renderChart(){
   document.getElementById('chart-icon').src = iconFor(key);
   document.getElementById('chart-sym').textContent = key;
   const curUsd = tokenUsd(key);
-  document.getElementById('chart-px').textContent = fmtUsd(curUsd);
+  document.getElementById('chart-px').textContent = curUsd>0 ? fmtUsd(curUsd) : '–';
 
   const data = filteredHistory(key);
   const empty = document.getElementById('chart-empty');
@@ -1767,13 +2035,20 @@ function renderChart(){
   empty.style.display = 'none';
   canvas.style.visibility = 'visible';
 
-  const first = data[0].usd, last = data[data.length-1].usd;
+  // Plot in USD if every point in range has it, otherwise fall back to the
+  // WHERESY-denominated price (straight from the token's own pool) so a
+  // temporary gap in the BOB→USD leg doesn't blank an otherwise-good chart.
+  const usdAvailable = data.every(p => p.usd != null && p.usd > 0);
+  const seriesKey = usdAvailable ? 'usd' : 'wheresy';
+  const fmtY = usdAvailable ? fmtUsd : (v)=> fmtAdaptive(v) + ' WHERESY';
+
+  const first = data[0][seriesKey], last = data[data.length-1][seriesKey];
   const pct = first>0 ? ((last-first)/first)*100 : 0;
   changeEl.textContent = (pct>=0?'▲ ':'▼ ') + Math.abs(pct).toFixed(2) + '%';
   changeEl.className = 'chart-change ' + (pct>0.001 ? 'up' : pct<-0.001 ? 'down' : 'flat');
 
   const labels = data.map(p => new Date(p.t).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));
-  const values = data.map(p => p.usd);
+  const values = data.map(p => p[seriesKey]);
   const rising = last >= first;
   const lineColor = rising ? '#22C55E' : '#E8350A';
 
@@ -1787,6 +2062,8 @@ function renderChart(){
     priceChart.data.datasets[0].data = values;
     priceChart.data.datasets[0].borderColor = lineColor;
     priceChart.data.datasets[0].backgroundColor = gradient;
+    priceChart.options.plugins.tooltip.callbacks.label = (c)=> fmtY(c.parsed.y);
+    priceChart.options.scales.y.ticks.callback = (v)=> fmtY(v);
     priceChart.update('none');
     return;
   }
@@ -1823,7 +2100,7 @@ function renderChart(){
           bodyFont: { family: 'DM Mono' },
           padding: 10,
           displayColors: false,
-          callbacks: { label: (c)=> fmtUsd(c.parsed.y) }
+          callbacks: { label: (c)=> fmtY(c.parsed.y) }
         }
       },
       scales: {
@@ -1832,7 +2109,7 @@ function renderChart(){
           display: true,
           position: 'right',
           grid: { color: 'rgba(255,255,255,.05)' },
-          ticks: { color: '#888888', font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 5, callback: (v)=> fmtUsd(v) }
+          ticks: { color: '#888888', font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 5, callback: (v)=> fmtY(v) }
         }
       }
     }
@@ -2092,6 +2369,9 @@ setPickerUI('sb-from', sbFromKey);
 updateSbViaVisibility();
 updateSbRouteLine();
 resetSbFinalToken();
+buildKsMenus();
+selectKsFrom(ksFromKey);
+selectKsTo(ksToKey);
 loadPriceHistory();
 buildChartTabs();
 refreshPrices();
