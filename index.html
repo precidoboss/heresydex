@@ -2,378 +2,224 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>HERESY DEX — Swap &amp; Bridge on The Grotto</title>
-<meta name="theme-color" content="#0A0A0A"/>
+<meta name="description" content="HERESY DEX: swap every Grotto L1 token through one router, bridge to Avalanche C-Chain with optional auto-swap, and track your portfolio."/>
+<meta name="theme-color" content="#070708"/>
+<meta property="og:title" content="HERESY DEX"/>
+<meta property="og:description" content="Swap, bridge and track tokens on The Grotto L1."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700;900&display=swap" rel="stylesheet"/>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕯️</text></svg>"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="assets/css/base.css"/>
+<link rel="stylesheet" href="assets/css/app.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<script>window.ethers||document.write('<script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"><\/script>')</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
-<style>
-:root{
---red:#E8350A; --orange:#FF6B1A; --amber:#FF9500; --black:#0A0A0A; --dark:#111111;
---card:#181818; --border:#2A2A2A; --text:#F0F0F0; --muted:#888888; --success:#22C55E;
---font-display:'Bebas Neue',sans-serif; --font-body:'Barlow',sans-serif; --font-mono:'DM Mono',monospace;
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
-body{background:var(--black);color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.6;min-height:100vh;overflow-x:hidden;position:relative;}
-::selection{background:rgba(255,107,26,.35);color:#fff;}
-h1,h2,h3,h4{font-family:var(--font-display);letter-spacing:1px;line-height:1.1;}
-.mono{font-family:var(--font-mono);}
-.container{max-width:900px;margin:0 auto;padding:0 16px;position:relative;z-index:1;}
-#bg-fx{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:var(--black);}
-.bg-glow{position:absolute;border-radius:50%;filter:blur(90px);opacity:.35;}
-.bg-glow.g1{width:520px;height:520px;background:radial-gradient(circle,var(--red),transparent 70%);top:-160px;left:-120px;animation:driftA 22s ease-in-out infinite;}
-.bg-glow.g2{width:600px;height:600px;background:radial-gradient(circle,var(--orange),transparent 70%);bottom:-220px;right:-160px;animation:driftB 26s ease-in-out infinite;}
-.bg-glow.g3{width:380px;height:380px;background:radial-gradient(circle,var(--amber),transparent 70%);top:40%;left:60%;animation:driftC 30s ease-in-out infinite;}
-@keyframes driftA{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(80px,60px) scale(1.15);}}
-@keyframes driftB{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-70px,-50px) scale(1.1);}}
-@keyframes driftC{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-50px,70px) scale(.9);}}
-.ember{position:absolute;bottom:-20px;border-radius:50%;background:radial-gradient(circle,#FFB35C,var(--orange) 60%,transparent 75%);opacity:0;animation-name:emberRise;animation-timing-function:ease-in;animation-iteration-count:infinite;}
-@keyframes emberRise{
-0%{transform:translate(0,0) scale(1);opacity:0;}
-8%{opacity:.9;}
-50%{transform:translate(var(--drift,20px),-52vh) scale(.8);opacity:.7;}
-92%{opacity:.15;}
-100%{transform:translate(calc(var(--drift,20px) * 1.6),-104vh) scale(.3);opacity:0;}
-}
-.grid-fx{position:absolute;inset:0;background-image:linear-gradient(rgba(255,107,26,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,107,26,.05) 1px,transparent 1px);background-size:42px 42px;mask-image:radial-gradient(circle at 50% 30%,black,transparent 75%);}
-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,10,10,.97);border-bottom:1px solid var(--border);backdrop-filter:blur(16px);padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
-.nav-logo{font-family:var(--font-display);font-size:1.6rem;letter-spacing:2px;flex-shrink:0;}
-.nav-logo span{color:var(--red);}
-.nav-tabs{display:flex;gap:4px;}
-.nav-tab{background:transparent;border:1px solid transparent;color:var(--muted);font-family:var(--font-body);font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.4px;padding:8px 12px;border-radius:6px;cursor:pointer;}
-.nav-tab.active{color:var(--red);background:rgba(232,53,10,.12);border-color:rgba(232,53,10,.3);}
-.nav-addr{font-family:var(--font-mono);font-size:.72rem;color:var(--orange);background:rgba(255,107,26,.1);padding:5px 9px;border-radius:5px;border:1px solid rgba(255,107,26,.3);white-space:nowrap;}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border:none;border-radius:6px;font-family:var(--font-body);font-weight:700;font-size:.82rem;letter-spacing:.3px;cursor:pointer;transition:all .15s;text-transform:uppercase;white-space:nowrap;}
-.btn-primary{background:linear-gradient(135deg,var(--red),var(--orange));color:#fff;}
-.btn-primary:hover{opacity:.88;transform:translateY(-1px);}
-.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
-.btn-ghost:hover{border-color:var(--orange);color:var(--orange);}
-.btn-sm{padding:6px 10px;font-size:.7rem;}
-.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
-.page{display:none;padding:80px 0 60px;position:relative;z-index:1;}
-.page.active{display:block;}
-.card{background:rgba(24,24,24,.85);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:12px;padding:20px;}
-.info-tip{display:flex;gap:10px;background:rgba(255,107,26,.06);border:1px solid rgba(255,107,26,.2);border-radius:10px;padding:12px 14px;font-size:.78rem;color:var(--muted);line-height:1.5;margin-bottom:16px;}
-.info-tip b{color:var(--text);}
-.price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
-.price-card{background:rgba(24,24,24,.85);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;}
-.price-card .sym{display:flex;align-items:center;justify-content:center;gap:5px;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
-.price-card .sym img{width:14px;height:14px;border-radius:50%;}
-.price-card .val{font-family:var(--font-display);font-size:1.2rem;color:var(--orange);word-break:break-all;}
-.price-card .sub{font-size:.68rem;color:var(--muted);margin-top:2px;}
-label{display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
-input{width:100%;padding:11px 12px;background:var(--dark);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-mono);font-size:1rem;}
-input:focus{outline:none;border-color:var(--orange);}
-.swap-box{max-width:460px;margin:0 auto;position:relative;}
-.swap-io{background:var(--dark);border:1px solid var(--border);border-radius:10px;padding:12px 14px;transition:box-shadow .3s;position:relative;}
-.swap-io-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
-.swap-io-top span{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
-.swap-io input{background:transparent;border:none;padding:0;font-size:1.4rem;}
-.swap-io input:focus{outline:none;}
-.swap-io-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
-.usd-val{font-size:.72rem;color:var(--muted);font-family:var(--font-mono);}
-.token-picker{display:flex;align-items:center;gap:6px;background:rgba(255,107,26,.1);border:1px solid rgba(255,107,26,.3);color:var(--orange);font-weight:800;font-size:.85rem;padding:6px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap;cursor:pointer;position:relative;user-select:none;}
-.token-picker img{width:18px;height:18px;border-radius:50%;background:#000;object-fit:cover;}
-.token-picker .caret{font-size:.6rem;opacity:.7;}
-.token-menu{display:none;position:absolute;top:calc(100% + 8px);right:0;background:#1c1c1c;border:1px solid var(--border);border-radius:10px;padding:6px;min-width:170px;max-height:280px;overflow-y:auto;box-shadow:0 12px 30px rgba(0,0,0,.5);z-index:20;}
-.token-menu.open{display:block;}
-.token-menu-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:.85rem;color:var(--text);font-weight:600;}
-.token-menu-item:hover{background:rgba(255,107,26,.12);}
-.token-menu-item img{width:20px;height:20px;border-radius:50%;background:#000;object-fit:cover;}
-.token-menu-item .liq-flag{margin-left:auto;font-size:.6rem;color:var(--amber);font-weight:700;}
-.swap-arrow{display:flex;justify-content:center;margin:6px 0;position:relative;z-index:2;}
-.swap-arrow button{width:36px;height:36px;border-radius:10px;background:var(--card);border:1px solid var(--border);color:var(--orange);cursor:pointer;font-size:1.1rem;transition:transform .35s cubic-bezier(.34,1.56,.64,1),border-color .2s;}
-.swap-arrow button:hover{border-color:var(--orange);}
-.swap-arrow button.spin{transform:rotate(180deg);}
-.swap-details{font-size:.76rem;color:var(--muted);margin:12px 0;display:flex;flex-direction:column;gap:5px;}
-.swap-details div{display:flex;justify-content:space-between;gap:10px;}
-.swap-details b{color:var(--text);font-weight:600;text-align:right;word-break:break-all;}
-.route-line{font-size:.72rem;color:var(--orange);text-align:center;margin:2px 0 10px;font-family:var(--font-mono);}
-.tx-status{padding:10px 14px;border-radius:8px;font-size:.8rem;margin-top:12px;display:none;align-items:center;gap:8px;}
-.tx-status.show{display:flex;}
-.tx-pending{background:rgba(255,149,0,.1);color:var(--amber);border:1px solid rgba(255,149,0,.3);}
-.tx-success{background:rgba(34,197,94,.1);color:var(--success);border:1px solid rgba(34,197,94,.3);}
-.tx-error{background:rgba(232,53,10,.1);color:var(--red);border:1px solid rgba(232,53,10,.3);}
-.spinner{width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:spin .7s linear infinite;flex-shrink:0;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.progress-track{display:flex;gap:4px;margin-top:10px;}
-.progress-seg{flex:1;height:4px;border-radius:3px;background:var(--border);overflow:hidden;position:relative;}
-.progress-seg .fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,var(--red),var(--orange));border-radius:3px;transition:width .5s ease;}
-.progress-seg.active .fill{width:60%;animation:pulseFill 1.2s ease-in-out infinite;}
-.progress-seg.done .fill{width:100%;animation:none;}
-@keyframes pulseFill{0%,100%{width:35%;}50%{width:75%;}}
-.progress-labels{display:flex;justify-content:space-between;font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:4px;}
-.pulse-once{animation:pulseOnce .5s ease;}
-@keyframes pulseOnce{0%{transform:scale(1);}30%{transform:scale(1.04);color:var(--orange);}100%{transform:scale(1);}}
-.coin-fly{position:absolute;font-size:1.4rem;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;opacity:0;z-index:5;}
-.coin-fly img{width:32px;height:32px;border-radius:50%;}
-.coin-fly.go{animation:coinFly 1s ease-in-out;}
-@keyframes coinFly{0%{opacity:0;transform:translate(-50%,-140%) scale(.6) rotate(0deg);}20%{opacity:1;}50%{transform:translate(-50%,-50%) scale(1.3) rotate(180deg);opacity:1;}80%{opacity:1;}100%{opacity:0;transform:translate(-50%,60%) scale(.6) rotate(360deg);}}
-.slippage-row{display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap;}
-.slip-btn{padding:5px 10px;border-radius:20px;background:var(--dark);border:1px solid var(--border);color:var(--muted);font-size:.7rem;font-weight:700;cursor:pointer;}
-.slip-btn.active{border-color:var(--orange);color:var(--orange);background:rgba(255,107,26,.1);}
-.bridge-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);gap:10px;}
-.bridge-row:last-child{border-bottom:none;}
-.bridge-row .l{font-size:.78rem;color:var(--muted);}
-.bridge-row .r{font-family:var(--font-mono);font-size:.8rem;text-align:right;}
-.addr-link{color:var(--orange);text-decoration:none;}
-.addr-link:hover{text-decoration:underline;}
-.form-group{margin-bottom:14px;}
-.adv-toggle{font-size:.72rem;color:var(--orange);cursor:pointer;text-decoration:underline;margin-bottom:12px;display:inline-block;}
-.adv-panel{display:none;border-top:1px dashed var(--border);margin-top:10px;padding-top:12px;}
-.adv-panel.open{display:block;}
-#toast-container{position:fixed;bottom:20px;right:16px;display:flex;flex-direction:column-reverse;gap:8px;z-index:9999;max-width:min(340px,calc(100vw - 32px));}
-.toast{display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:10px;font-size:.82rem;font-weight:600;background:#14171c;border:1px solid var(--border);border-left:3px solid;box-shadow:0 10px 28px rgba(0,0,0,.45);opacity:0;transform:translateX(24px);transition:all .25s ease;}
-.toast.show{opacity:1;transform:translateX(0);}
-.toast-success{border-left-color:var(--success);color:var(--success);}
-.toast-error{border-left-color:var(--red);color:var(--red);}
-.toast-info{border-left-color:var(--orange);color:var(--orange);}
-.section-title{font-size:1.6rem;margin-bottom:4px;}
-.section-sub{color:var(--muted);font-size:.85rem;margin-bottom:20px;}
-
-/* ===== chart ===== */
-.chart-card{margin-bottom:18px;}
-.chart-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
-.chart-token{display:flex;align-items:center;gap:10px;}
-.chart-token img{width:30px;height:30px;border-radius:50%;background:#000;object-fit:cover;}
-.chart-token .sym{font-family:var(--font-display);font-size:1.15rem;letter-spacing:.5px;}
-.chart-token .px{font-family:var(--font-mono);font-size:.95rem;color:var(--orange);}
-.chart-change{font-family:var(--font-mono);font-size:.78rem;font-weight:600;padding:3px 8px;border-radius:6px;}
-.chart-change.up{color:var(--success);background:rgba(34,197,94,.1);}
-.chart-change.down{color:var(--red);background:rgba(232,53,10,.1);}
-.chart-change.flat{color:var(--muted);background:rgba(255,255,255,.05);}
-.chart-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
-.chart-tab{display:flex;align-items:center;gap:5px;background:var(--dark);border:1px solid var(--border);color:var(--muted);font-size:.7rem;font-weight:700;padding:5px 9px 5px 6px;border-radius:20px;cursor:pointer;}
-.chart-tab img{width:15px;height:15px;border-radius:50%;background:#000;object-fit:cover;}
-.chart-tab.active{border-color:var(--orange);color:var(--orange);background:rgba(255,107,26,.1);}
-.chart-range{display:flex;gap:4px;}
-.range-btn{padding:4px 9px;border-radius:20px;background:var(--dark);border:1px solid var(--border);color:var(--muted);font-size:.68rem;font-weight:700;cursor:pointer;}
-.range-btn.active{border-color:var(--orange);color:var(--orange);background:rgba(255,107,26,.1);}
-.chart-wrap{position:relative;height:220px;width:100%;}
-.chart-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.78rem;color:var(--muted);text-align:center;padding:20px;}
-.chart-foot{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-top:8px;}
-
-/* ===== portfolio ===== */
-.portfolio-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:28px 20px;margin-bottom:16px;background:linear-gradient(160deg,rgba(232,53,10,.12),rgba(24,24,24,.85));}
-.portfolio-hero .label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
-.portfolio-hero .total{font-family:var(--font-display);font-size:2.6rem;background:linear-gradient(135deg,var(--red),var(--amber));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
-.portfolio-hero .addr{font-family:var(--font-mono);font-size:.78rem;color:var(--orange);margin-top:8px;background:rgba(255,107,26,.1);padding:5px 10px;border-radius:20px;border:1px solid rgba(255,107,26,.3);}
-.portfolio-empty{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 10px;}
-.holding-row{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border);}
-.holding-row:last-child{border-bottom:none;}
-.holding-row img{width:34px;height:34px;border-radius:50%;background:#000;object-fit:cover;flex-shrink:0;}
-.holding-info{flex:1;min-width:0;}
-.holding-sym{font-weight:800;font-size:.9rem;}
-.holding-sub{font-size:.7rem;color:var(--muted);font-family:var(--font-mono);}
-.holding-amounts{text-align:right;flex-shrink:0;}
-.holding-bal{font-family:var(--font-mono);font-size:.85rem;}
-.holding-usd{font-size:.72rem;color:var(--muted);}
-.holding-bar{height:3px;border-radius:2px;background:var(--border);margin-top:6px;overflow:hidden;}
-.holding-bar .fill{height:100%;background:linear-gradient(90deg,var(--red),var(--orange));}
-.tx-row{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border);}
-.tx-row:last-child{border-bottom:none;}
-.tx-icons{display:flex;align-items:center;flex-shrink:0;}
-.tx-icons img{width:26px;height:26px;border-radius:50%;background:#000;object-fit:cover;border:2px solid var(--card);}
-.tx-icons img:last-child{margin-left:-10px;}
-.tx-info{flex:1;min-width:0;}
-.tx-title{font-size:.82rem;font-weight:700;}
-.tx-sub{font-size:.7rem;color:var(--muted);font-family:var(--font-mono);}
-.tx-right{text-align:right;flex-shrink:0;}
-.tx-badge{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:20px;display:inline-block;margin-bottom:3px;}
-.tx-badge.swap{color:var(--orange);background:rgba(255,107,26,.12);}
-.tx-badge.bridge{color:var(--amber);background:rgba(255,149,0,.12);}
-.tx-link{font-size:.68rem;color:var(--muted);text-decoration:none;}
-.tx-link:hover{color:var(--orange);}
-.section-head-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.clear-link{font-size:.68rem;color:var(--muted);cursor:pointer;text-decoration:underline;}
-.clear-link:hover{color:var(--red);}
-.holding-actions{display:flex;gap:6px;flex-shrink:0;margin-left:8px;}
-.holding-actions button{padding:6px 10px;font-size:.66rem;border-radius:6px;}
-.tx-onchain-badge{color:var(--muted);background:rgba(255,255,255,.06);}
-.tx-onchain-badge.ok{color:var(--success);background:rgba(34,197,94,.1);}
-.tx-onchain-badge.fail{color:var(--red);background:rgba(232,53,10,.1);}
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:16px;}
-.modal-overlay.open{display:flex;}
-.modal-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:380px;width:100%;}
-.modal-card h3{font-family:var(--font-display);font-size:1.2rem;letter-spacing:.5px;margin-bottom:4px;}
-.modal-card .modal-sub{font-size:.76rem;color:var(--muted);margin-bottom:14px;}
-.modal-close-row{display:flex;gap:8px;margin-top:14px;}
-.modal-close-row .btn{flex:1;}
-.max-link{font-size:.66rem;color:var(--orange);cursor:pointer;text-decoration:underline;}
-.onchain-loadmore{width:100%;margin-top:10px;}
-
-@media (max-width:640px){
-.price-grid{grid-template-columns:1fr;}
-nav{padding:0 10px;}
-.nav-tab{padding:7px 9px;font-size:.7rem;}
-.nav-logo{font-size:1.3rem;}
-.chart-wrap{height:180px;}
-.portfolio-hero .total{font-size:2rem;}
-}
-</style>
+<script>window.Chart||document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"><\/script>')</script>
 </head>
 <body>
 <div id="bg-fx">
-<div class="bg-glow g1"></div>
-<div class="bg-glow g2"></div>
-<div class="bg-glow g3"></div>
-<div class="grid-fx"></div>
-<div id="ember-layer"></div>
+  <div class="bg-glow g1"></div><div class="bg-glow g2"></div><div class="bg-glow g3"></div>
+  <div class="grid-fx"></div><div id="ember-layer"></div>
 </div>
-<nav>
-<div style="display:flex;align-items:center;gap:14px;min-width:0;">
-<div class="nav-logo">HERESY<span>DEX</span></div>
-<div class="nav-tabs">
-<button class="nav-tab active" id="tab-swap" onclick="showPage('swap')">Swap</button>
-<button class="nav-tab" id="tab-bridge" onclick="showPage('bridge')">Bridge</button>
-<button class="nav-tab" id="tab-portfolio" onclick="showPage('portfolio')">Portfolio</button>
-</div>
-</div>
-<div style="display:flex;align-items:center;gap:8px;">
-<span class="nav-addr" id="nav-addr" style="display:none;"></span>
-<button class="btn btn-primary btn-sm" id="btn-connect" onclick="connectWallet()">Connect Wallet</button>
-</div>
+
+<nav class="topnav">
+  <div class="nav-inner">
+    <div class="nav-left">
+      <a class="nav-logo" href="#swap" onclick="showPage('swap');return false;"><span class="mark">🕯️</span>HERESY<span class="dex">DEX</span></a>
+      <div class="nav-tabs">
+        <button class="nav-tab active" data-page="swap" onclick="showPage('swap')">Swap</button>
+        <button class="nav-tab" data-page="bridge" onclick="showPage('bridge')">Bridge</button>
+        <button class="nav-tab" data-page="portfolio" onclick="showPage('portfolio')">Portfolio</button>
+        <a class="nav-tab" href="docs.html">Docs</a>
+      </div>
+    </div>
+    <div class="nav-right">
+      <span class="net-pill"><i></i>The Grotto</span>
+      <span class="nav-addr" id="nav-addr"></span>
+      <button class="btn btn-primary btn-sm" id="btn-connect" onclick="connectWallet()">Connect Wallet</button>
+    </div>
+  </div>
 </nav>
+
+<div class="bottom-bar">
+  <button class="active" data-page="swap" onclick="showPage('swap')"><span class="ico">⇄</span>Swap</button>
+  <button data-page="bridge" onclick="showPage('bridge')"><span class="ico">🌉</span>Bridge</button>
+  <button data-page="portfolio" onclick="showPage('portfolio')"><span class="ico">◔</span>Portfolio</button>
+  <a href="docs.html"><span class="ico">📖</span>Docs</a>
+</div>
 <div id="toast-container"></div>
 
 <!-- ============ SWAP PAGE ============ -->
 <div class="page active" id="page-swap">
 <div class="container">
-<div class="section-title">Swap on The Grotto</div>
-<div class="section-sub">Routed automatically through WHERESY · one signed transaction via HeresyRouter</div>
 
-<div class="info-tip">
-<span>🕯️</span>
-<div><b>Router:</b> <a class="addr-link mono" id="router-link" href="#" target="_blank">0xd087…6b10B</a> on The Grotto. Every token below is only paired against WHERESY on-chain — the router auto-wraps/unwraps native HERESY and hops through WHERESY when needed, so any pair here is one approval + one signed swap. A 1% platform fee applies once per transaction (skipped entirely on pure wrap/unwrap). Tokens marked <span style="color:var(--amber);font-weight:700;">⚠ thin liquidity</span> have low pool depth — expect real price impact on anything but small amounts.</div>
-</div>
+  <section class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow"><i></i>Live on The Grotto L1</span>
+      <h1>Swap anything.<br/><em>Bridge everywhere.</em></h1>
+      <p>One router for every Grotto token, priced from on-chain reserves. Bridge to Avalanche C-Chain with an optional auto-swap on arrival.</p>
+    </div>
+    <div class="hero-stats">
+      <div class="hstat"><div class="k">HERESY</div><div class="v" id="hs-heresy">–</div></div>
+      <div class="hstat"><div class="k">BOB</div><div class="v" id="hs-bob">–</div></div>
+      <div class="hstat"><div class="k">Total liquidity</div><div class="v" id="hs-liq">–</div></div>
+      <div class="hstat"><div class="k">Markets</div><div class="v" id="hs-markets">–</div></div>
+    </div>
+  </section>
 
-<div class="price-grid">
-<div class="price-card">
-<div class="sym"><img id="pc1-icon" src="" alt=""/><span id="pc1-label">$BOB</span></div>
-<div class="val" id="pc1-val">$0.0000</div>
-<div class="sub" id="pc1-sub">via Avax dexscreener ref.</div>
-</div>
-<div class="price-card">
-<div class="sym" id="pc2-label">1 BOB ≈</div>
-<div class="val" id="pc2-val">–</div>
-<div class="sub">at current pool price</div>
-</div>
-<div class="price-card">
-<div class="sym"><img id="pc3-icon" src="" alt=""/>$WHERESY / $HERESY</div>
-<div class="val" id="pc3-val">$0.0000</div>
-<div class="sub">derived from BOB pool</div>
-</div>
-</div>
+  <div class="swap-layout">
+    <div class="swap-main">
 
-<div class="card chart-card">
-<div class="chart-head">
-<div class="chart-token">
-<img id="chart-icon" src="" alt=""/>
-<div>
-<div class="sym" id="chart-sym">BOB</div>
-<div class="px" id="chart-px">$0.0000</div>
-</div>
-</div>
-<span class="chart-change flat" id="chart-change">–</span>
-</div>
-<div class="chart-tabs" id="chart-tabs"></div>
-<div class="chart-wrap">
-<canvas id="price-chart"></canvas>
-<div class="chart-empty" id="chart-empty" style="display:none;">Gathering live price ticks — chart fills in as the pool gets polled. Check back in a bit.</div>
-</div>
-<div class="chart-foot">
-<span id="chart-range-label">Live pool-derived price · updates every 20s</span>
-<div class="chart-range">
-<button class="range-btn" data-r="20" onclick="setChartRange(20,this)">20</button>
-<button class="range-btn" data-r="60" onclick="setChartRange(60,this)">60</button>
-<button class="range-btn active" data-r="0" onclick="setChartRange(0,this)">All</button>
-</div>
-</div>
-</div>
+      <div class="price-grid">
+        <div class="price-card">
+          <div class="sym"><img id="pc1-icon" src="" alt=""/><span id="pc1-label">$BOB</span></div>
+          <div class="val" id="pc1-val">$0.0000</div>
+          <div class="sub" id="pc1-sub">via Avax dexscreener ref.</div>
+        </div>
+        <div class="price-card">
+          <div class="sym" id="pc2-label">1 BOB ≈</div>
+          <div class="val" id="pc2-val">–</div>
+          <div class="sub">at current pool price</div>
+        </div>
+        <div class="price-card">
+          <div class="sym"><img id="pc3-icon" src="" alt=""/>$WHERESY / $HERESY</div>
+          <div class="val" id="pc3-val">$0.0000</div>
+          <div class="sub">derived from BOB pool</div>
+        </div>
+      </div>
 
-<div class="card swap-box">
-<div class="coin-fly" id="coin-fly"><img id="coin-fly-img" src="" alt=""/></div>
+      <div class="card chart-card" id="chart-card">
+        <div class="chart-head">
+          <div class="chart-token">
+            <img id="chart-icon" src="" alt=""/>
+            <div>
+              <div class="sym" id="chart-sym">BOB / HERESY</div>
+              <div class="px" id="chart-px">–</div>
+            </div>
+          </div>
+          <div class="chart-head-r">
+            <span class="chart-change flat" id="chart-change">–</span>
+            <div class="seg" id="chart-denom">
+              <button class="range-btn active" data-d="native" onclick="setChartDenom('native')">Token</button>
+              <button class="range-btn" data-d="usd" onclick="setChartDenom('usd')">USD≈</button>
+            </div>
+            <div class="seg" id="chart-ranges"></div>
+          </div>
+        </div>
+        <div class="chart-tabs" id="chart-tabs"></div>
+        <div class="chart-wrap">
+          <canvas id="price-chart"></canvas>
+          <div class="chart-empty" id="chart-empty">Loading on-chain price history…</div>
+        </div>
+        <div class="chart-stats">
+          <div><div class="k">High</div><div class="v" id="stat-high">–</div></div>
+          <div><div class="k">Low</div><div class="v" id="stat-low">–</div></div>
+          <div><div class="k">Pool liquidity</div><div class="v" id="stat-liq">–</div></div>
+        </div>
+        <div class="chart-foot" id="chart-status">Loading on-chain history…</div>
+      </div>
 
-<div class="swap-io" id="io-from">
-<div class="swap-io-top"><span>You pay</span><span id="bal-from">Balance: –</span></div>
-<div style="display:flex;align-items:center;gap:10px;">
-<input type="number" id="in-amount" placeholder="0.0" oninput="onAmountChange()"/>
-<div class="token-picker" id="from-picker" onclick="toggleTokenMenu('from')">
-<img id="from-picker-icon" src="" alt=""/>
-<span id="from-picker-label">BOB</span>
-<span class="caret">▾</span>
-<div class="token-menu" id="from-menu"></div>
-</div>
-</div>
-<div class="swap-io-bottom"><span class="usd-val" id="usd-from">≈ $0.00</span><span></span></div>
-</div>
+      <div class="card">
+        <div class="table-head">
+          <h3>Markets</h3>
+          <input class="search" type="search" placeholder="Search tokens…" oninput="filterMarkets(this.value)"/>
+        </div>
+        <div class="table-wrap">
+          <table class="markets" id="markets-table">
+            <thead><tr>
+              <th>#</th>
+              <th data-sort="name" onclick="sortMarkets('name')">Token</th>
+              <th class="num" data-sort="price" onclick="sortMarkets('price')">Price</th>
+              <th class="num" data-sort="chg" onclick="sortMarkets('chg')">24h</th>
+              <th class="num hide-sm sorted" data-sort="liq" data-dir="▼" onclick="sortMarkets('liq')">Liquidity</th>
+              <th class="hide-sm">Trend</th>
+            </tr></thead>
+            <tbody id="markets-body"><tr><td colspan="6" class="portfolio-empty">Loading markets…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
 
-<div class="swap-arrow"><button id="flip-btn" onclick="flipDirection()">⇅</button></div>
+    </div>
 
-<div class="swap-io" id="io-to">
-<div class="swap-io-top"><span>You receive (est.)</span><span id="bal-to">Balance: –</span></div>
-<div style="display:flex;align-items:center;gap:10px;">
-<input type="text" id="out-amount" placeholder="0.0" disabled/>
-<div class="token-picker" id="to-picker" onclick="toggleTokenMenu('to')">
-<img id="to-picker-icon" src="" alt=""/>
-<span id="to-picker-label">HERESY</span>
-<span class="caret">▾</span>
-<div class="token-menu" id="to-menu"></div>
-</div>
-</div>
-<div class="swap-io-bottom"><span class="usd-val" id="usd-to">≈ $0.00</span><span></span></div>
-</div>
+    <aside class="swap-side">
+      <div class="card swap-box glow">
+        <div class="coin-fly" id="coin-fly"><img id="coin-fly-img" src="" alt=""/></div>
+        <div class="swap-head"><h3>Swap</h3><span class="mono" style="font-size:.7rem;color:var(--muted);">router <a class="addr-link" id="router-link" href="#" target="_blank" rel="noopener">0xd087…6b10B</a></span></div>
 
-<div class="route-line" id="route-line"></div>
+        <div class="swap-io" id="io-from">
+          <div class="swap-io-top"><span>You pay</span><span id="bal-from">Balance: –</span></div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input type="number" id="in-amount" placeholder="0.0" oninput="onAmountChange()"/>
+            <div class="token-picker" id="from-picker" onclick="toggleTokenMenu('from')">
+              <img id="from-picker-icon" src="" alt=""/><span id="from-picker-label">BOB</span><span class="caret">▾</span>
+              <div class="token-menu" id="from-menu"></div>
+            </div>
+          </div>
+          <div class="swap-io-bottom"><span class="usd-val" id="usd-from">≈ $0.00</span><span></span></div>
+        </div>
 
-<div class="slippage-row">
-<span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;">Slippage</span>
-<button class="slip-btn" onclick="setSlippage(0.5,this)">0.5%</button>
-<button class="slip-btn active" onclick="setSlippage(1,this)">1%</button>
-<button class="slip-btn" onclick="setSlippage(3,this)">3%</button>
-<input type="number" id="custom-slip" placeholder="Custom" min="0.01" max="50" step="0.1" style="width:70px;padding:5px 8px;font-size:.7rem;border-radius:20px;" oninput="setCustomSlippage(this.value)"/>
-<span style="font-size:.7rem;color:var(--muted);">%</span>
-</div>
+        <div class="swap-arrow"><button id="flip-btn" onclick="flipDirection()" aria-label="Flip tokens">⇅</button></div>
 
+        <div class="swap-io" id="io-to">
+          <div class="swap-io-top"><span>You receive (est.)</span><span id="bal-to">Balance: –</span></div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input type="text" id="out-amount" placeholder="0.0" disabled/>
+            <div class="token-picker" id="to-picker" onclick="toggleTokenMenu('to')">
+              <img id="to-picker-icon" src="" alt=""/><span id="to-picker-label">HERESY</span><span class="caret">▾</span>
+              <div class="token-menu" id="to-menu"></div>
+            </div>
+          </div>
+          <div class="swap-io-bottom"><span class="usd-val" id="usd-to">≈ $0.00</span><span></span></div>
+        </div>
 
-<div class="swap-details">
-<div><span>Rate</span><b id="det-price">–</b></div>
-<div><span>Price impact</span><b id="det-impact">–</b></div>
-<div><span>Min. received</span><b id="det-min">–</b></div>
-<div><span>Platform fee</span><b id="det-fee">–</b></div>
-</div>
+        <div class="route-line" id="route-line"></div>
 
-<button class="btn btn-primary" style="width:100%;margin-top:8px;" id="btn-swap" onclick="doSwap()">Connect Wallet</button>
+        <div class="slippage-row">
+          <span class="lbl">Slippage</span>
+          <button class="slip-btn" onclick="setSlippage(0.5,this)">0.5%</button>
+          <button class="slip-btn active" onclick="setSlippage(1,this)">1%</button>
+          <button class="slip-btn" onclick="setSlippage(3,this)">3%</button>
+          <input type="number" id="custom-slip" placeholder="Custom" min="0.01" max="50" step="0.1" oninput="setCustomSlippage(this.value)"/>
+          <span style="font-size:.72rem;color:var(--muted);">%</span>
+        </div>
 
-<div class="progress-track" id="progress-track" style="display:none;">
-<div class="progress-seg" id="seg-1"><div class="fill"></div></div>
-<div class="progress-seg" id="seg-2"><div class="fill"></div></div>
-</div>
-<div class="progress-labels" id="progress-labels" style="display:none;">
-<span>Approve</span><span>Swap</span>
-</div>
-<div id="tx-swap" class="tx-status"></div>
-</div>
+        <div class="swap-details">
+          <div><span>Rate</span><b id="det-price">–</b></div>
+          <div><span>Price impact</span><b id="det-impact">–</b></div>
+          <div><span>Min. received</span><b id="det-min">–</b></div>
+          <div><span>Platform fee</span><b id="det-fee">–</b></div>
+        </div>
 
+        <button class="btn btn-primary btn-lg" style="width:100%;" id="btn-swap" onclick="doSwap()">Connect Wallet</button>
+
+        <div class="progress-track" id="progress-track" style="display:none;">
+          <div class="progress-seg" id="seg-1"><div class="fill"></div></div>
+          <div class="progress-seg" id="seg-2"><div class="fill"></div></div>
+        </div>
+        <div class="progress-labels" id="progress-labels" style="display:none;"><span>Approve</span><span>Swap</span></div>
+        <div id="tx-swap" class="tx-status"></div>
+      </div>
+      <p style="font-size:.72rem;color:var(--faint);margin-top:12px;text-align:center;">Every token is paired against WHERESY on-chain; the router wraps native HERESY and hops through WHERESY when needed. <a class="addr-link" href="docs.html#swapping">How swaps work →</a></p>
+    </aside>
+  </div>
 </div>
 </div>
 
 <!-- ============ BRIDGE PAGE ============ -->
 <div class="page" id="page-bridge">
 <div class="container">
-<div class="section-title">Bridge</div>
-<div class="section-sub">The Grotto L1 ⇄ Avalanche C-Chain, with an optional auto-swap on arrival via GrottoBridgeHub</div>
+  <div class="section-title">Bridge</div>
+  <div class="section-sub">The Grotto L1 ⇄ Avalanche C-Chain, with an optional auto-swap on arrival via GrottoBridgeHub.</div>
 
-<div class="nav-tabs" style="margin-bottom:16px;">
-<button class="nav-tab active" id="bmode-swapbridge" onclick="setBridgeMode('swapbridge')">Swap &amp; Bridge</button>
-<button class="nav-tab" id="bmode-raw" onclick="setBridgeMode('raw')">Raw Bridge ($BOB only)</button>
-</div>
-
-<!-- ============ SWAP & BRIDGE (GrottoBridgeHub) ============ -->
+  <div class="bridge-layout">
+    <div>
+      <div class="mode-seg">
+        <button class="nav-tab active" id="bmode-swapbridge" onclick="setBridgeMode('swapbridge')">Swap &amp; Bridge</button>
+        <button class="nav-tab" id="bmode-raw" onclick="setBridgeMode('raw')">Raw Bridge ($BOB only)</button>
+      </div>
 <div id="bridge-swapbridge-section">
 
 <div class="info-tip">
@@ -456,7 +302,7 @@ Routed through <b>GrottoBridgeHub</b> on Grotto and <b>AvalancheBridgeReceiver</
 
 </div>
 
-<!-- ============ RAW ICTT BRIDGE (existing, BOB only) ============ -->
+
 <div id="bridge-raw-section" style="display:none;">
 
 <div class="info-tip">
@@ -503,44 +349,34 @@ This sends a real <span class="mono">send()</span> transaction to the ERC20Token
 
 </div>
 
-<div class="card" style="margin-bottom:16px;">
-<div class="bridge-row">
-<div class="l">GrottoBridgeHub — Grotto</div>
-<div class="r"><a class="addr-link" href="https://grottoexplorer.xyz/address/0x9cA6959c148ec204E1e043E236cA0A29ab946B85" target="_blank">0x9cA6…6B85 ↗</a></div>
-</div>
-<div class="bridge-row">
-<div class="l">AvalancheBridgeReceiver — Avalanche</div>
-<div class="r"><a class="addr-link" href="https://snowtrace.io/address/0xe1181Ae5055D7990EfA30085c15E3E2188426111" target="_blank">0xe118…6111 ↗</a></div>
-</div>
-<div class="bridge-row">
-<div class="l">HeresyRouter — Avalanche</div>
-<div class="r"><a class="addr-link" href="https://snowtrace.io/address/0x2463E8C7b592c6d4f5B4e6207FaF05412605eEdc" target="_blank">0x2463…5eEdc ↗</a></div>
-</div>
-<div class="bridge-row">
-<div class="l">$BOB — The Grotto (underlying, 700M fixed supply)</div>
-<div class="r"><a class="addr-link" href="https://grottoexplorer.xyz/token/0x06057d79dBC506f7c0803F052E6c823AA4A25dEA" target="_blank">0x0605…5dEA ↗</a></div>
-</div>
-<div class="bridge-row">
-<div class="l">ERC20TokenHome — Grotto (custody)</div>
-<div class="r"><a class="addr-link" href="https://grottoexplorer.xyz/address/0x362c34d5df39458be2fe3a2f132dd45f0f4189a3" target="_blank">0x362c…89a3 ↗</a></div>
-</div>
-<div class="bridge-row">
-<div class="l">ERC20TokenRemote — Avalanche (wrapped $BOB)</div>
-<div class="r"><a class="addr-link" href="https://snowtrace.io/address/0x2f524f453430520ca26e5485017abaa80231c53d" target="_blank">0x2f52…3c53d ↗</a></div>
-</div>
-</div>
 
-<button class="btn btn-ghost" style="width:100%;" onclick="window.open('https://bp.enterthegrotto.xyz/bridge','_blank')">Open Official Bridge ↗</button>
-<button class="btn btn-ghost" style="width:100%;margin-top:8px;" onclick="addTokenToWallet()">Add wrapped $BOB to wallet (Avalanche)</button>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h3 style="font-size:1.3rem;margin-bottom:14px;">How it works</h3>
+        <div class="steps">
+          <div class="step"><div class="n">1</div><div><b>Pick what to send</b><span>Any HERESY DEX token. The hub swaps it into BOB, CAVE or USDC on Grotto if needed.</span></div></div>
+          <div class="step"><div class="n">2</div><div><b>Bridge over ICM / ICTT</b><span>The bridged asset travels to Avalanche C-Chain through Avalanche Warp messaging.</span></div></div>
+          <div class="step"><div class="n">3</div><div><b>Auto-swap on arrival</b><span>The receiver optionally swaps into your chosen final token and delivers it to the recipient.</span></div></div>
+        </div>
+        <a class="addr-link" href="docs.html#bridging" style="font-size:.8rem;">Read the bridging guide →</a>
+      </div>
+<div class="card">
+        <h3 style="font-size:1.3rem;margin-bottom:6px;">Contracts</h3>
+        <div id="contract-list"></div>
+      </div>
+      <button class="btn btn-ghost" style="width:100%;" onclick="window.open('https://bp.enterthegrotto.xyz/bridge','_blank')">Open Official Bridge ↗</button>
+      <button class="btn btn-ghost" style="width:100%;" onclick="addTokenToWallet()">Add wrapped $BOB to wallet (Avalanche)</button>
+    </div>
+  </div>
 </div>
 </div>
 
 <!-- ============ PORTFOLIO PAGE ============ -->
 <div class="page" id="page-portfolio">
 <div class="container">
-<div class="section-title">Portfolio</div>
-<div class="section-sub">Live balances across every HERESY DEX token, valued in USD · plus your on-app transaction history</div>
-
+  <div class="section-title">Portfolio</div>
+  <div class="section-sub">Live balances across every HERESY DEX token, valued in USD, plus your on-app transaction history.</div>
 <div id="portfolio-disconnected" class="card portfolio-empty">
 🕯️ Connect your wallet to see your holdings and transaction history.
 <div style="margin-top:14px;"><button class="btn btn-primary" onclick="connectWallet()">Connect Wallet</button></div>
@@ -584,7 +420,28 @@ This sends a real <span class="mono">send()</span> transaction to the ERC20Token
 </div>
 </div>
 
-<!-- ============ SEND / TRANSFER MODAL ============ -->
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div>© HERESY DEX · built on The Grotto L1 · swaps are on-chain and irreversible — double-check before you sign.</div>
+    <div class="footer-links">
+      <a href="docs.html">Docs</a>
+      <a href="docs.html#contracts">Contracts</a>
+      <a href="https://grottoexplorer.xyz" target="_blank" rel="noopener">Explorer</a>
+      <a href="https://github.com/precidoboss/heresydex" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ WALLET PICKER MODAL ============ -->
+<div class="modal-overlay" id="wallet-modal">
+  <div class="modal-card">
+    <h3>Connect a wallet</h3>
+    <div class="modal-sub">Choose which browser wallet to use. HERESY DEX will switch it to The Grotto.</div>
+    <div id="wallet-list"></div>
+    <div class="modal-close-row"><button class="btn btn-ghost" onclick="closeWalletModal()">Cancel</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="send-modal">
 <div class="modal-card">
 <h3>Send <span id="send-modal-sym"></span></h3>
@@ -608,1610 +465,20 @@ This sends a real <span class="mono">send()</span> transaction to the ERC20Token
 </div>
 </div>
 
-<script>
-// ==================== CONFIG ====================
-const GROTTO_CHAIN_ID = 36463;
-const GROTTO_CHAIN_ID_HEX = '0x' + GROTTO_CHAIN_ID.toString(16);
-const GROTTO_RPC = 'https://subnets.avax.network/thegrotto/mainnet/rpc';
-const GROTTO_EXPLORER = 'https://subnets.avax.network/thegrotto';
-const AVAX_CHAIN_ID_HEX = '0xA86A'; // 43114
-const AVAX_C_RPC = 'https://api.avax.network/ext/bc/C/rpc';
-
-const BOB_GROTTO = '0x06057d79dBC506f7c0803F052E6c823AA4A25dEA';
-const WHERESY_ADDR = '0xfA99B368B5fc1f5a061bc393dFf73BE8a097667D';
-const BOB_HOME_GROTTO = '0x362c34d5df39458be2fe3a2f132dd45f0f4189a3';
-const BOB_REMOTE_AVAX = '0x2F524f453430520ca26E5485017aBAA80231C53D';
-const WARP_PRECOMPILE = '0x0200000000000000000000000000000000000005';
-const WARP_ABI = ["function getBlockchainID() view returns (bytes32)"];
-const DEXSCREENER_BOB_AVAX = 'https://api.dexscreener.com/latest/dex/pairs/avalanche/0x200ce172bf316d302d8e38e712fe0d093162b84b';
-
-// ---- Swap & Bridge (GrottoBridgeHub / AvalancheBridgeReceiver) ----
-// Deployed contracts from GrottoBridgeHub.sol / AvalancheBridgeReceiver.sol.
-const GROTTO_BRIDGE_HUB = '0xA817452EF0E2F086bAe8feF9D2Ba924CB4a3Df59';   // Grotto
-const AVALANCHE_RECEIVER = '0x6916c4d860869025Cc3fA8DEea686E0Eab05cfE0'; // Avalanche
-// NOTE: there is no "Avalanche HeresyRouter" anymore — that was the whole
-// bug. The final leg on Avalanche is quoted and executed via KyberSwap's
-// public aggregator API instead (real liquidity, no pools to bootstrap).
-// See getKyberSwapQuote() below. Kyber's own docs are the source for this
-// endpoint shape and the native-token sentinel address — not guessed.
-const KYBER_CHAIN_SLUG = 'avalanche';
-const KYBER_API_BASE = 'https://aggregator-api.kyberswap.com/' + KYBER_CHAIN_SLUG + '/api/v1';
-const KYBER_NATIVE_SENTINEL = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'; // Kyber's convention for native AVAX
-
-// Only BOB, CAVE, USDC and native HERESY are hardcoded bridge routes inside
-// GrottoBridgeHub — matches _homeAndRemote() / the HERESY_HOME branch in
-// GrottoBridgeHub.sol exactly. Anything else has to be swapped into one of
-// these on Grotto first (the hub does that swap for you if you pass a
-// different tokenIn).
-const BRIDGEABLE_KEYS = ['BOB', 'CAVE', 'USDC', 'HERESY'];
-// What the bridged asset is represented as once it lands on Avalanche —
-// taken directly from the *_REMOTE / *_HOME constants in
-// AvalancheBridgeReceiver.sol. HERESY arrives as native AVAX-denominated
-// value (the receiver's native path is `payable`), so it uses Kyber's own
-// native-token sentinel when quoting/building the final swap, and the
-// app's usual ZeroAddress convention everywhere else in the UI.
-const AVAX_BRIDGE_ASSET = {
-  BOB: '0x2F524f453430520ca26E5485017aBAA80231C53D',   // BOB_REMOTE
-  CAVE: '0xf294Fec63CC1aEE691943f7F17fB5187289bc522',   // CAVE_REMOTE
-  USDC: '0xc2Dc59BdB6C85f80Bf604c7C47598BE1E6c5b3F7',   // USDC_HOME_AVAX
-  HERESY: ethers.ZeroAddress                             // native on arrival (app convention)
-};
-// Real, known tokens on Avalanche C-Chain that the "final token" picker in
-// Swap & Bridge offers directly (decimals + icons so the estimate shown
-// before signing is accurate, not just an assumption).
-const AVAX_TOKENS = {
-  AVAX:   { symbol:'AVAX',   type:'native', address: ethers.ZeroAddress, decimals:18, icon:'https://cave.money/_next/image?url=%2Ftoken_images%2Favax.png&w=48&q=75&dpl=dpl_DgKkYSpURTtXetkvnwKQQ2sG8UMn' },
-  HERESY: { symbol:'HERESY', type:'erc20',  address:'0x432d38F83a50EC77C409D086e97448794cf76dCF', decimals:18, icon:'https://cave.money/_next/image?url=%2Ftoken_images%2FGHERESY.png&w=96&q=75&dpl=dpl_DgKkYSpURTtXetkvnwKQQ2sG8UMn' },
-  CAVE:   { symbol:'CAVE',   type:'erc20',  address:'0xf294Fec63CC1aEE691943f7F17fB5187289bc522', decimals:18, icon:'https://cave.money/caveLogo.png' },
-  USDC:   { symbol:'USDC',   type:'erc20',  address:'0xc2Dc59BdB6C85f80Bf604c7C47598BE1E6c5b3F7', decimals:6,  icon:'https://cave.money/token_images/USDC.svg?dpl=dpl_DgKkYSpURTtXetkvnwKQQ2sG8U' },
-  BOB:    { symbol:'BOB',    type:'erc20',  address:'0x2F524f453430520ca26E5485017aBAA80231C53D', decimals:18, icon:'https://bp.enterthegrotto.xyz/_next/image?url=%2Fimages%2Fbp-coin.png&w=96&q=75&dpl=dpl_GcjBAnqUhkqnWvG35bbXPrmWxs3t' },
-};
-// Which AVAX_TOKENS entry a given "bridge via" token defaults to (i.e. no
-// auto-swap on arrival — just receive the bridged asset). Native HERESY
-// arrives as native AVAX per AvalancheBridgeReceiver's payable path, so it
-// maps to AVAX, not the wrapped "HERESY (ERC20)" token.
-const SB_DEFAULT_FINAL_KEY = { BOB:'BOB', CAVE:'CAVE', USDC:'USDC', HERESY:'AVAX' };
-const HUB_ABI = [
-  "function swapAndBridge(address tokenIn, address bridgeToken, uint256 amountIn, uint256 minBridgeAmount, bytes destinationPayload) external",
-  "function bridgeNativeAndCall(bytes destinationPayload) external payable"
-];
-
-// Deployed HeresyRouter — see conversation history for the audited source.
-const ROUTER_ADDRESS = '0x84Ba409F78777DA67Efc0795Ad52FE13089DBca5';
-
-// Every token here is paired directly against WHERESY on-chain. Addresses
-// and pool addresses match exactly what was registered via seedInitialPools()
-// on the router — do NOT add tokens here without also calling setPool() on
-// the router first (and vice versa), or the frontend and contract will
-// disagree about what's swappable.
-const TOKENS = {
-  HERESY:  { symbol:'HERESY',  type:'native', address: ethers.ZeroAddress, decimals:18, icon:'https://grottoexplorer.xyz/assets/configs/network_icon.png' },
-  WHERESY: { symbol:'WHERESY', type:'erc20',  address: WHERESY_ADDR,       decimals:18, icon:'https://grottoexplorer.xyz/assets/configs/network_icon.png' },
-  BOB:     { symbol:'BOB',     type:'erc20',  address:'0x06057d79dBC506f7c0803F052E6c823AA4A25dEA', decimals:18, pool:'0xF8602d664840DD329BaEfA8692801D21167D6E69', icon:'https://bp.enterthegrotto.xyz/_next/image?url=%2Fimages%2Fbp-coin.png&w=96&q=75&dpl=dpl_GcjBAnqUhkqnWvG35bbXPrmWxs3t' },
-  CAVE:    { symbol:'CAVE',    type:'erc20',  address:'0x246002aecBcd1B125e87301814Dd259Cb5fa6ED6', decimals:18, pool:'0xE9437aBA09b2a3Ad288C7296B3cF197eE96de045', icon:'https://cave.money/caveLogo.png' },
-  EARLY:   { symbol:'EARLY',   type:'erc20',  address:'0x06E5A4c7068993Dc73DbA2C87D92bEEb06B895e3', decimals:18, pool:'0x3Fa08d722D552B7D62f6ef4A6bF5d3C4e8a1D8a9', icon:'https://cave.money/_next/image?url=%2Ftoken_images%2FEARLY.png&w=64&q=75&dpl=dpl_DgKkYSpURTtXetkvnwKQQ2sG8UMn' },
-  USDC:    { symbol:'USDC',    type:'erc20',  address:'0x9B0e6F566a531b8dD500DD51B0250034Ddd58366', decimals:6,  pool:'0xD61246153091D323CDF92650287B91765ea8d910', icon:'https://cave.money/token_images/USDC.svg?dpl=dpl_DgKkYSpURTtXetkvnwKQQ2sG8U' },
-  ANAL:    { symbol:'ANAL',    type:'erc20',  address:'0x44a5163e580CcCe3A1dBe19C13770Bb554d113c4', decimals:18, pool:'0x79cA749Ea2503Fe03A3383fA8229a9be2e84A655', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-ADLogoNew-1769975640567-7204.png&w=64&q=75' },
-  ERNIE:   { symbol:'ERNIE',   type:'erc20',  address:'0x055fA249CFB586fF595FdCAE54E4e454Da346DF0', decimals:18, pool:'0x212218d7d519a556bbd16e3012AC6C9A3DEb8710', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-logo1-1768333994638-5194.png&w=64&q=75' },
-  GREG:    { symbol:'GREG',    type:'erc20',  address:'0x4CEE1f4b3808db3c6f47d521E2AB73c0A2126301', decimals:18, pool:'0xf6414180817a3fba575AfDeD570653Ca814BB191', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-2A15A7DE-4875-4576-99EE-527D20830940-1768673742988-5869.png&w=64&q=75' },
-  SNS:     { symbol:'SNS',     type:'erc20',  address:'0x8f65793a8dB5C31f2Feb5804Ccc65f90Ff52391c', decimals:18, pool:'0x8826325D8Dcb2ebe980D2b7d8F0034b777841825', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-315f1120-8611-4517-9956-daf74e608c60-1779646031273-4970.jpg&w=64&q=75' },
-  UNKOWN:  { symbol:'UNKOWN',  type:'erc20',  address:'0x219F9287ABa63bB0e966e12b7305539CcaDAF218', decimals:18, pool:'0x470E37FC4B15058e96A079B224BebF6Fa960e9e7', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-IMG_6144-1780319275259-2737.jpeg&w=64&q=75' },
-  NPL:     { symbol:'NPL',     type:'erc20',  address:'0x1FB721Afd78175B94a5E66AA8a46Fb024bDFBE39', decimals:18, pool:'0x25968f5055e9220Dd7F6C91f25A9E77A0222b572', lowLiq:true, icon:'https://cave.money/_next/image?url=https%3A%2F%2Fapi.enterthegrotto.xyz%2Fimages%2Fuploads%2Ftoken-565F85E0-8EB3-400C-826C-210946BB1502-1768683610308-5531.png&w=64&q=75' },
-};
-
-const ROUTER_ABI = [
-  "function quote(address tokenIn, address tokenOut, uint256 amountIn) view returns (uint256 amountOut, uint256 fee, bool routeExists)",
-  "function swapExactTokensForTokens(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, address to, uint256 deadline) returns (uint256 amountOut)",
-  "function swapExactNativeForTokens(address tokenOut, uint256 amountOutMin, address to, uint256 deadline) payable returns (uint256 amountOut)",
-  "function swapExactTokensForNative(address tokenIn, uint256 amountIn, uint256 amountOutMin, address to, uint256 deadline) returns (uint256 amountOut)"
-];
-
-const ERC20_ABI = [
-  "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)",
-  "function balanceOf(address) view returns (uint256)",
-  "function approve(address spender, uint256 amount) returns (bool)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function transfer(address to, uint256 amount) returns (bool)"
-];
-
-const PAIR_ABI = [
-  "function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)",
-  "function token0() view returns (address)",
-  "function token1() view returns (address)"
-];
-
-const TOKEN_HOME_ABI = [
-  "function send((bytes32 destinationBlockchainID, address destinationTokenTransferrerAddress, address recipient, address primaryFeeTokenAddress, uint256 primaryFee, uint256 secondaryFee, uint256 requiredGasLimit, address multiHopFallback) input, uint256 amount)"
-];
-
-// ==================== STATE ====================
-let provider=null, signer=null, userAddress=null;
-let roProvider = new ethers.JsonRpcProvider(GROTTO_RPC);
-let routerRO = new ethers.Contract(ROUTER_ADDRESS, ROUTER_ABI, roProvider);
-let bobRO = new ethers.Contract(BOB_GROTTO, ERC20_ABI, roProvider);
-let avaxRoProvider = new ethers.JsonRpcProvider(AVAX_C_RPC);
-// There is no "Avalanche HeresyRouter" — the final leg on Avalanche is
-// quoted/executed through KyberSwap's public API instead. See
-// getKyberSwapQuote() below.
-let fromKey = 'BOB', toKey = 'HERESY';
-let slippagePct = 1;
-let poolData = {};   // tokenKey => { tokenReserve, wheresyReserve }
-let bobUsd = 0;
-let wheresyUsd = 0;
-let estimateTimer = null;
-const iconCache = {};
-
-// ---- price chart state ----
-const CHART_HISTORY_KEY = 'heresy_price_history_v1';
-const CHART_MAX_POINTS = 500;
-let chartTokenKey = 'BOB';
-let chartRangeMins = 0; // 0 = all
-let priceChart = null;
-let priceHistory = {}; // loaded lazily from localStorage: { SYMBOL: [{t, usd, wheresy}] }
-function loadPriceHistory(){
-  try{ priceHistory = JSON.parse(localStorage.getItem(CHART_HISTORY_KEY) || '{}'); }
-  catch(e){ priceHistory = {}; }
-}
-function savePriceHistory(){
-  try{ localStorage.setItem(CHART_HISTORY_KEY, JSON.stringify(priceHistory)); }catch(e){}
-}
-function recordPricePoint(key, usd, wheresyPrice){
-  if(!isFinite(usd) || usd<=0) return;
-  if(!priceHistory[key]) priceHistory[key] = [];
-  const arr = priceHistory[key];
-  const last = arr[arr.length-1];
-  const now = Date.now();
-  if(last && now - last.t < 15000) return; // avoid dupes if refreshPrices fires twice quickly
-  arr.push({ t: now, usd, wheresy: wheresyPrice });
-  if(arr.length > CHART_MAX_POINTS) arr.splice(0, arr.length - CHART_MAX_POINTS);
-}
-
-// ---- tx history state ----
-const TX_HISTORY_KEY_PREFIX = 'heresy_tx_history_';
-function txHistoryKey(){ return TX_HISTORY_KEY_PREFIX + (userAddress||'').toLowerCase(); }
-function loadTxHistory(){
-  if(!userAddress) return [];
-  try{ return JSON.parse(localStorage.getItem(txHistoryKey()) || '[]'); }catch(e){ return []; }
-}
-function pushTxHistory(entry){
-  if(!userAddress) return;
-  const list = loadTxHistory();
-  list.unshift(entry);
-  if(list.length > 100) list.length = 100;
-  try{ localStorage.setItem(txHistoryKey(), JSON.stringify(list)); }catch(e){}
-}
-function clearTxHistory(){
-  if(!userAddress) return;
-  if(!confirm('Clear your locally-stored transaction history? This only clears it from this browser — nothing on-chain is affected.')) return;
-  try{ localStorage.removeItem(txHistoryKey()); }catch(e){}
-  renderTxHistory();
-}
-
-document.getElementById('router-link').href = 'https://grottoexplorer.xyz/address/' + ROUTER_ADDRESS;
-document.getElementById('router-link').textContent = ROUTER_ADDRESS.slice(0,6)+'…'+ROUTER_ADDRESS.slice(-4);
-
-function showPage(p){
-  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
-  document.getElementById('page-'+p).classList.add('active');
-  document.getElementById('tab-'+p).classList.add('active');
-  if(p==='bridge'){ refreshBridgeBalances(); refreshSbBalance(); updateSwapBridgeButtonLabel(); }
-  if(p==='portfolio') refreshPortfolio();
-}
-function toggleAdvanced(){ document.getElementById('adv-panel').classList.toggle('open'); }
-function toast(msg,type='info'){
-  const el=document.createElement('div');
-  el.className=`toast toast-${type}`;
-  el.textContent=msg;
-  document.getElementById('toast-container').appendChild(el);
-  setTimeout(()=>el.classList.add('show'),10);
-  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},3500);
-}
-function setTxStatus(id,msg,type,spinner){
-  const el=document.getElementById(id);
-  el.innerHTML = (spinner? '<span class="spinner"></span>':'') + '<span>'+msg+'</span>';
-  el.className = `tx-status show tx-${type}`;
-}
-function friendlyError(e){
-  const msg = e?.reason || e?.shortMessage || e?.message || String(e);
-  if(/user rejected/i.test(msg)) return 'Transaction rejected.';
-  if(/no route/i.test(msg)) return 'No route available for this pair.';
-  if(/insufficient output/i.test(msg)) return 'Price moved past your slippage tolerance — try again or raise slippage.';
-  if(/insufficient liquidity/i.test(msg)) return 'Not enough liquidity in the pool for this amount.';
-  if(/insufficient/i.test(msg)) return 'Insufficient balance or gas.';
-  return msg.slice(0,200);
-}
-function setProgress(step, state){
-  const seg = document.getElementById('seg-'+step);
-  seg.classList.remove('active','done');
-  if(state) seg.classList.add(state);
-}
-function resetProgress(needsApprove){
-  document.getElementById('progress-track').style.display='flex';
-  document.getElementById('progress-labels').style.display='flex';
-  setProgress(1,''); setProgress(2,'');
-  document.getElementById('seg-1').style.opacity = needsApprove ? '1':'0.25';
-}
-function pulse(el){ el.classList.remove('pulse-once'); void el.offsetWidth; el.classList.add('pulse-once'); }
-function fmtAdaptive(num){
-  if(num===0 || num==null || isNaN(num)) return '0';
-  if(!isFinite(num)) return '–';
-  const abs = Math.abs(num);
-  if(abs >= 1000) return num.toLocaleString(undefined,{maximumFractionDigits:2});
-  if(abs >= 1) return num.toLocaleString(undefined,{maximumFractionDigits:6});
-  const leadingZeros = Math.max(0, -Math.floor(Math.log10(abs)) - 1);
-  const decimals = Math.min(leadingZeros + 5, 18);
-  let s = num.toFixed(decimals);
-  s = s.replace(/0+$/,'').replace(/\.$/,'');
-  return s === '' || s === '-' ? '0' : s;
-}
-function fmtUsd(num){
-  if(!isFinite(num) || num==null) return '$0.00';
-  const abs = Math.abs(num);
-  if(abs===0) return '$0.00';
-  if(abs >= 1) return '$' + num.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  const leadingZeros = Math.max(0, -Math.floor(Math.log10(abs)) - 1);
-  const decimals = Math.min(leadingZeros + 4, 12);
-  return '$' + num.toFixed(decimals).replace(/0+$/,'').replace(/\.$/,'');
-}
-
-// ==================== BACKGROUND FX ====================
-function initEmbers(){
-  const layer = document.getElementById('ember-layer');
-  const n = window.innerWidth < 640 ? 14 : 26;
-  for(let i=0;i<n;i++){
-    const e = document.createElement('div');
-    e.className = 'ember';
-    const size = 3 + Math.random()*7;
-    const left = Math.random()*100;
-    const dur = 9 + Math.random()*10;
-    const delay = Math.random()*dur;
-    const drift = (Math.random()*140-70).toFixed(0)+'px';
-    e.style.width = size+'px';
-    e.style.height = size+'px';
-    e.style.left = left+'%';
-    e.style.setProperty('--drift', drift);
-    e.style.animationDuration = dur+'s';
-    e.style.animationDelay = '-'+delay+'s';
-    layer.appendChild(e);
-  }
-}
-initEmbers();
-
-// ==================== ICONS (generated for tokens without a hosted image) ====================
-function generatedIcon(symbol){
-  const colors=['#E8350A','#FF6B1A','#FF9500','#22C55E','#3B82F6','#A855F7','#EC4899'];
-  let hash=0; for(let i=0;i<symbol.length;i++) hash = symbol.charCodeAt(i) + ((hash<<5)-hash);
-  const color = colors[Math.abs(hash)%colors.length];
-  const letters = symbol.slice(0,2).toUpperCase();
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><circle cx='20' cy='20' r='20' fill='${color}'/><text x='20' y='26' font-family='Barlow,sans-serif' font-size='16' font-weight='800' fill='#0A0A0A' text-anchor='middle'>${letters}</text></svg>`;
-  return 'data:image/svg+xml,'+encodeURIComponent(svg);
-}
-function iconFor(key){
-  const t = TOKENS[key];
-  if(t.icon) return t.icon;
-  if(iconCache[key]) return iconCache[key];
-  return (iconCache[key] = generatedIcon(t.symbol));
-}
-
-// ==================== TOKEN PICKER ====================
-function buildTokenMenu(side){
-  const menu = document.getElementById(side+'-menu');
-  menu.innerHTML = '';
-  Object.keys(TOKENS).forEach(key=>{
-    const t = TOKENS[key];
-    const item = document.createElement('div');
-    item.className = 'token-menu-item';
-    item.innerHTML = `<img src="${iconFor(key)}" alt=""/><span>${key}</span>${t.lowLiq?'<span class="liq-flag">⚠ thin</span>':''}`;
-    item.onclick = (ev)=>{ ev.stopPropagation(); selectToken(side, key); closeAllMenus(); };
-    menu.appendChild(item);
-  });
-}
-function toggleTokenMenu(side){
-  event.stopPropagation();
-  const isOpen = document.getElementById(side+'-menu').classList.contains('open');
-  closeAllMenus();
-  if(!isOpen) document.getElementById(side+'-menu').classList.add('open');
-}
-function closeAllMenus(){
-  document.getElementById('from-menu').classList.remove('open');
-  document.getElementById('to-menu').classList.remove('open');
-  const sbMenu = document.getElementById('sb-from-menu');
-  if(sbMenu) sbMenu.classList.remove('open');
-  const sbFinalMenu = document.getElementById('sb-final-menu');
-  if(sbFinalMenu) sbFinalMenu.classList.remove('open');
-}
-document.addEventListener('click', closeAllMenus);
-function selectToken(side, key){
-  if(side==='from'){
-    if(key===toKey){ toKey = fromKey; setPickerUI('to', toKey); }
-    fromKey = key;
-    setPickerUI('from', fromKey);
-  } else {
-    if(key===fromKey){ fromKey = toKey; setPickerUI('from', fromKey); }
-    toKey = key;
-    setPickerUI('to', toKey);
-  }
-  updateRouteLine();
-  updatePriceGrid();
-  updateEstimate();
-  refreshBalances();
-  updateSwapButtonLabel();
-}
-function setPickerUI(side, key){
-  document.getElementById(side+'-picker-label').textContent = key;
-  document.getElementById(side+'-picker-icon').src = iconFor(key);
-}
-
-// ==================== KYBERSWAP AGGREGATOR (Avalanche final leg) ====================
-// This app's own convention for "native asset" is ethers.ZeroAddress
-// (matches AVAX_TOKENS.AVAX.address and AVAX_BRIDGE_ASSET.HERESY above) —
-// KyberSwap uses a DIFFERENT sentinel (0xEeee...EEeE, their documented
-// convention, same one 1inch/0x use). Every address handed to Kyber's API
-// must go through this mapping first, or a native-asset quote will 400.
-function toKyberAddr(addr){
-  return (addr === ethers.ZeroAddress) ? KYBER_NATIVE_SENTINEL : addr;
-}
-// Two-step flow per KyberSwap's own documented API: GET /routes for a
-// quote, then POST /route/build to turn that exact route into real,
-// executable calldata + which contract to send it to. routerAddress is
-// NOT constant across chains/versions — always use whatever the build
-// response returns, never a hardcoded address, or execution will fail
-// even though the quote looked fine.
-//
-// Returns null (never throws) on any failure — every caller MUST treat
-// null as "no route available right now", matching how the rest of this
-// app already treats a failed on-chain quote. Never let a Kyber failure
-// bubble up as an uncaught exception, since that would break the whole
-// Swap & Bridge estimate/submit flow rather than just disabling the
-// auto-swap leg.
-async function getKyberSwapQuote(tokenInAddr, tokenOutAddr, amountInWei, recipient, slippageBps){
-  try{
-    if(tokenInAddr.toLowerCase() === tokenOutAddr.toLowerCase()) return null; // nothing to swap
-    const routeUrl = `${KYBER_API_BASE}/routes?tokenIn=${tokenInAddr}&tokenOut=${tokenOutAddr}&amountIn=${amountInWei.toString()}`;
-    const routeRes = await fetch(routeUrl, { headers: { 'x-client-id': 'heresydex' } });
-    if(!routeRes.ok) return null;
-    const routeJson = await routeRes.json();
-    const routeSummary = routeJson?.data?.routeSummary;
-    if(!routeSummary) return null;
-
-    const buildRes = await fetch(`${KYBER_API_BASE}/route/build`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-client-id': 'heresydex' },
-      body: JSON.stringify({
-        routeSummary,
-        sender: AVALANCHE_RECEIVER,   // the contract that will actually hold + spend the bridged tokens
-        recipient,                    // where the swap OUTPUT should land — the end user's own address
-        slippageTolerance: Math.round(slippageBps), // basis points, e.g. 100 = 1%
-        deadline: Math.floor(Date.now()/1000) + 3600
-      })
-    });
-    if(!buildRes.ok) return null;
-    const buildJson = await buildRes.json();
-    const built = buildJson?.data;
-    if(!built || !built.data || !built.routerAddress) return null;
-
-    return {
-      routerAddress: built.routerAddress,
-      calldata: built.data,
-      amountOut: routeSummary.amountOut,           // string, in tokenOut's smallest unit
-      tokenOutDecimalsHint: routeSummary.tokenOut   // address, for cross-checking against what we asked for
-    };
-  }catch(e){
-    console.warn('KyberSwap quote/build failed', e);
-    return null;
-  }
-}
-
-// ==================== SWAP & BRIDGE (GrottoBridgeHub) ====================
-let sbFromKey = 'BOB';
-let sbViaKey = 'BOB';
-let sbSlippagePct = 2;
-let sbEstimateTimer = null;
-const hubWriteFor = ()=> new ethers.Contract(GROTTO_BRIDGE_HUB, HUB_ABI, signer);
-
-function setBridgeMode(mode){
-  document.getElementById('bmode-swapbridge').classList.toggle('active', mode==='swapbridge');
-  document.getElementById('bmode-raw').classList.toggle('active', mode==='raw');
-  document.getElementById('bridge-swapbridge-section').style.display = mode==='swapbridge' ? 'block' : 'none';
-  document.getElementById('bridge-raw-section').style.display = mode==='raw' ? 'block' : 'none';
-  if(mode==='raw') refreshBridgeBalances();
-}
-
-function buildSbTokenMenu(){
-  const menu = document.getElementById('sb-from-menu');
-  menu.innerHTML = '';
-  Object.keys(TOKENS).forEach(key=>{
-    const t = TOKENS[key];
-    const item = document.createElement('div');
-    item.className = 'token-menu-item';
-    item.innerHTML = `<img src="${iconFor(key)}" alt=""/><span>${key}</span>${t.lowLiq?'<span class="liq-flag">⚠ thin</span>':''}`;
-    item.onclick = (ev)=>{ ev.stopPropagation(); selectSbToken(key); closeAllMenus(); };
-    menu.appendChild(item);
-  });
-}
-function selectSbToken(key){
-  sbFromKey = key;
-  setPickerUI('sb-from', key);
-  if(!BRIDGEABLE_KEYS.includes(key)) sbViaKey = 'BOB'; // reset to a valid default
-  else sbViaKey = key;
-  document.getElementById('sb-via-select').value = sbViaKey;
-  updateSbViaVisibility();
-  refreshSbBalance();
-  updateSbRouteLine();
-  resetSbFinalToken();
-  onSbAmountChange();
-}
-function updateSbViaVisibility(){
-  document.getElementById('sb-via-group').style.display = BRIDGEABLE_KEYS.includes(sbFromKey) ? 'none' : 'block';
-}
-function onSbViaChange(){
-  sbViaKey = document.getElementById('sb-via-select').value;
-  updateSbRouteLine();
-  resetSbFinalToken();
-  onSbAmountChange();
-}
-function updateSbRouteLine(){
-  const line = document.getElementById('sb-route-line');
-  if(sbFromKey === sbViaKey || BRIDGEABLE_KEYS.includes(sbFromKey)){
-    line.textContent = `Route: bridge ${sbViaKey} directly · via GrottoBridgeHub`;
-  } else {
-    line.textContent = `Route: ${sbFromKey} → ${sbViaKey} on Grotto → bridge ${sbViaKey} · via GrottoBridgeHub`;
-  }
-}
-async function refreshSbBalance(){
-  document.getElementById('sb-bal-from').textContent = 'Balance: –';
-  if(!userAddress) return;
-  const bal = await getBalance(sbFromKey);
-  document.getElementById('sb-bal-from').textContent = 'Balance: ' + fmtAdaptive(bal);
-}
-
-// ---- Final-token (Avalanche) picker ----
-let sbFinalKey = 'BOB';
-function availableFinalKeys(){
-  // Previously AVAX (native OUT) was hidden as a target for BOB/CAVE/USDC,
-  // because the old fixed Avalanche router could only ever call
-  // swapExactTokensForTokens (ERC20-out only, never native-out). That
-  // restriction no longer applies — AvalancheBridgeReceiver now executes
-  // whatever calldata KyberSwap's API builds, and KyberSwap can swap any
-  // ERC20 into native AVAX directly, output sent straight to the
-  // recipient. All final-token options are available regardless of what's
-  // being bridged.
-  return Object.keys(AVAX_TOKENS);
-}
-function buildSbFinalMenu(){
-  const menu = document.getElementById('sb-final-menu');
-  menu.innerHTML = '';
-  availableFinalKeys().forEach(key=>{
-    const t = AVAX_TOKENS[key];
-    const item = document.createElement('div');
-    item.className = 'token-menu-item';
-    item.innerHTML = `<img src="${t.icon}" alt=""/><span>${key}</span>`;
-    item.onclick = (ev)=>{ ev.stopPropagation(); selectSbFinal(key); closeAllMenus(); };
-    menu.appendChild(item);
-  });
-}
-function selectSbFinal(key){
-  sbFinalKey = key;
-  const t = AVAX_TOKENS[key];
-  document.getElementById('sb-final-picker-label').textContent = key;
-  document.getElementById('sb-final-picker-icon').src = t.icon;
-  // picking from the list overrides any custom address typed in
-  document.getElementById('sb-final-token').value = '';
-  onSbAmountChange();
-}
-function resetSbFinalToken(){
-  const key = SB_DEFAULT_FINAL_KEY[sbViaKey] || 'BOB';
-  document.getElementById('sb-final-custom-group').style.display = 'none';
-  document.getElementById('sb-final-token').value = '';
-  buildSbFinalMenu();
-  selectSbFinal(key);
-}
-function toggleSbCustomFinal(){
-  const grp = document.getElementById('sb-final-custom-group');
-  const opening = grp.style.display === 'none';
-  grp.style.display = opening ? 'block' : 'none';
-  if(opening) document.getElementById('sb-final-token').focus();
-}
-// Resolves { address, decimals, label } for whatever is currently selected —
-// the picker, or a custom address if one's been typed in. For a custom
-// address we read decimals() live off Avalanche rather than assuming 18,
-// so the estimate shown before signing is accurate for any token.
-async function resolveFinalToken(){
-  const raw = document.getElementById('sb-final-token').value.trim();
-  if(raw && ethers.isAddress(raw)){
-    try{
-      const c = new ethers.Contract(raw, ERC20_ABI, avaxRoProvider);
-      const decimals = await c.decimals();
-      return { address: raw, decimals: Number(decimals), label: raw.slice(0,6)+'…'+raw.slice(-4) };
-    }catch(e){
-      return { address: raw, decimals: 18, label: raw.slice(0,6)+'…'+raw.slice(-4), decimalsUnknown: true };
-    }
-  }
-  const t = AVAX_TOKENS[sbFinalKey];
-  return { address: t.address, decimals: t.decimals, label: t.symbol };
-}
-
-function setSbSlippage(v, btn){
-  sbSlippagePct = v;
-  btn.parentElement.querySelectorAll('.slip-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('sb-custom-slip').value = '';
-  onSbAmountChange();
-}
-function setSbCustomSlippage(v){
-  const n = parseFloat(v);
-  if(!v || isNaN(n) || n<=0) return;
-  sbSlippagePct = Math.min(n, 50);
-  document.getElementById('sb-custom-slip').closest('.slippage-row').querySelectorAll('.slip-btn').forEach(b=>b.classList.remove('active'));
-  onSbAmountChange();
-}
-function onSbAmountChange(){
-  clearTimeout(sbEstimateTimer);
-  sbEstimateTimer = setTimeout(updateSbEstimate, 300);
-}
-async function updateSbEstimate(){
-  const amtStr = document.getElementById('sb-amount').value;
-  const amt = parseFloat(amtStr || '0');
-  const btn = document.getElementById('btn-swapbridge');
-  if(!amt || amt<=0){
-    document.getElementById('sb-det-bridge').textContent = '–';
-    document.getElementById('sb-det-final').textContent = '–';
-    document.getElementById('sb-det-min').textContent = '–';
-    return;
-  }
-  const fromTok = TOKENS[sbFromKey];
-  const amountInWei = ethers.parseUnits(amt.toString(), fromTok.decimals);
-  const viaTok = TOKENS[sbViaKey];
-
-  // Leg 1: on Grotto, tokenIn -> bridgeToken (skipped if they're the same)
-  let bridgeAmountWei = amountInWei;
-  if(sbFromKey !== sbViaKey){
-    try{
-      const q = await routerRO.quote(routerAddrFor(sbFromKey), routerAddrFor(sbViaKey), amountInWei);
-      if(!q[2]){ document.getElementById('sb-det-bridge').textContent = 'No route on Grotto'; document.getElementById('sb-det-final').textContent='–'; document.getElementById('sb-det-min').textContent='–'; return; }
-      bridgeAmountWei = q[0];
-    }catch(e){
-      document.getElementById('sb-det-bridge').textContent = 'Quote failed';
-      return;
-    }
-  }
-  const bridgeAmount = parseFloat(ethers.formatUnits(bridgeAmountWei, viaTok.decimals));
-  document.getElementById('sb-det-bridge').textContent = `${fmtAdaptive(bridgeAmount)} ${sbViaKey}`;
-
-  // Leg 2: on Avalanche, bridged asset -> final token (skipped if same asset)
-  const final = await resolveFinalToken();
-  const bridgedAssetAddr = AVAX_BRIDGE_ASSET[sbViaKey];
-  if(final.address.toLowerCase() === bridgedAssetAddr.toLowerCase()){
-    document.getElementById('sb-det-final').textContent = `${fmtAdaptive(bridgeAmount)} ${sbViaKey} (no swap)`;
-    document.getElementById('sb-det-min').textContent = `${fmtAdaptive(bridgeAmount)} ${sbViaKey}`;
-    updateSwapBridgeButtonLabel();
-    return;
-  }
-  document.getElementById('sb-det-final').textContent = 'Fetching best rate via KyberSwap…';
-  document.getElementById('sb-det-min').textContent = '–';
-  if(!userAddress){
-    document.getElementById('sb-det-final').textContent = 'Connect wallet to see final-leg quote';
-    document.getElementById('sb-det-min').textContent = '–';
-    updateSwapBridgeButtonLabel();
-    return;
-  }
-  const kyberIn = toKyberAddr(bridgedAssetAddr);
-  const kyberOut = toKyberAddr(final.address);
-  const kyberSlippageBps = Math.round(sbSlippagePct * 100);
-  const kq = await getKyberSwapQuote(kyberIn, kyberOut, bridgeAmountWei, userAddress, kyberSlippageBps);
-  if(!kq){
-    document.getElementById('sb-det-final').textContent = 'No KyberSwap route right now — will fall back to raw ' + sbViaKey;
-    document.getElementById('sb-det-min').textContent = '–';
-  } else {
-    const estOut = parseFloat(ethers.formatUnits(kq.amountOut, final.decimals));
-    const decNote = final.decimalsUnknown ? ' (decimals unverified — assuming 18)' : '';
-    document.getElementById('sb-det-final').textContent = `≈ ${fmtAdaptive(estOut)} ${final.label}${decNote} · via KyberSwap`;
-    // Kyber already applies slippageTolerance when it BUILDS the actual
-    // calldata (the guaranteed-min is enforced on-chain by Kyber's own
-    // router at execution time) — this is a display-only estimate of that
-    // same floor, not a separately-enforced value on our side.
-    const minOut = estOut * (1 - sbSlippagePct/100);
-    document.getElementById('sb-det-min').textContent = fmtAdaptive(minOut) + ' ' + final.label;
-  }
-  updateSwapBridgeButtonLabel();
-}
-function updateSwapBridgeButtonLabel(){
-  const btn = document.getElementById('btn-swapbridge');
-  if(!userAddress){ btn.textContent = 'Connect Wallet'; btn.disabled = false; return; }
-  btn.textContent = `Swap & Bridge ${sbFromKey}`;
-  btn.disabled = false;
-}
-function sbSetProgress(step, state){
-  const seg = document.getElementById('sb-seg-'+step);
-  seg.classList.remove('active','done');
-  if(state) seg.classList.add(state);
-}
-async function doSwapAndBridge(){
-  if(!userAddress){ connectWallet(); return; }
-  const amt = parseFloat(document.getElementById('sb-amount').value || '0');
-  if(!amt || amt<=0){ toast('Enter an amount','error'); return; }
-  const recipientInput = document.getElementById('sb-recipient').value.trim();
-  const recipient = recipientInput || userAddress;
-  if(!ethers.isAddress(recipient)){ toast('Recipient is not a valid address','error'); return; }
-  const finalTok = await resolveFinalToken();
-  const finalTokenAddr = finalTok.address;
-  if(!ethers.isAddress(finalTokenAddr)){ toast('Enter a valid final token address (or leave it defaulted)','error'); return; }
-
-  const fromTok = TOKENS[sbFromKey];
-  const viaTok = TOKENS[sbViaKey];
-  const amountInWei = ethers.parseUnits(amt.toString(), fromTok.decimals);
-
-  // Recompute min-bridge and min-final right before sending, same as the
-  // estimate above, so what gets signed matches what was shown.
-  let bridgeAmountWei = amountInWei;
-  let minBridgeWei = 0n;
-  if(sbFromKey !== sbViaKey){
-    let q;
-    try{ q = await routerRO.quote(routerAddrFor(sbFromKey), routerAddrFor(sbViaKey), amountInWei); }
-    catch(e){ toast('Could not fetch a Grotto-side quote','error'); return; }
-    if(!q[2] || q[0]===0n){ toast(`No route from ${sbFromKey} to ${sbViaKey} on Grotto`,'error'); return; }
-    bridgeAmountWei = q[0];
-    const bps = BigInt(Math.round((1 - sbSlippagePct/100)*10000));
-    minBridgeWei = (bridgeAmountWei * bps) / 10000n;
-  }
-
-  const bridgedAssetAddr = AVAX_BRIDGE_ASSET[sbViaKey];
-  // Build the destination-chain payload EXACTLY the way
-  // AvalancheBridgeReceiver.sol expects: abi.encode(address swapTarget,
-  // bytes swapCalldata, address recipient, uint256 deadline). swapTarget
-  // stays the zero address when no swap is needed OR when Kyber has no
-  // route right now — the receiver treats that as "just deliver the raw
-  // bridged asset", which is always safe, never reverts, never loses funds.
-  const destinationDeadline = Math.floor(Date.now()/1000) + 3600;
-  let swapTarget = ethers.ZeroAddress;
-  let swapCalldata = '0x';
-  if(finalTokenAddr.toLowerCase() !== bridgedAssetAddr.toLowerCase()){
-    const kyberSlippageBps = Math.round(sbSlippagePct * 100);
-    const kq = await getKyberSwapQuote(
-      toKyberAddr(bridgedAssetAddr), toKyberAddr(finalTokenAddr),
-      bridgeAmountWei, recipient, kyberSlippageBps
-    );
-    if(kq){
-      swapTarget = kq.routerAddress;
-      swapCalldata = kq.calldata;
-    }
-    // else: no route available right now — proceeding with swapTarget
-    // still zero, exactly matching what the estimate above already told
-    // the user would happen ("will fall back to raw <asset>"). This is a
-    // deliberate, informed fallback, not a silent failure.
-  }
-  const destinationPayload = ethers.AbiCoder.defaultAbiCoder().encode(
-    ['address','bytes','address','uint256'],
-    [swapTarget, swapCalldata, recipient, destinationDeadline]
-  );
-
-  const btn = document.getElementById('btn-swapbridge');
-  btn.disabled = true;
-  document.getElementById('sb-progress-track').style.display = 'flex';
-  document.getElementById('sb-progress-labels').style.display = 'flex';
-  sbSetProgress(1,''); sbSetProgress(2,'');
-
-  try{
-    if(sbFromKey === 'HERESY'){
-      // Native path — bridgeNativeAndCall, no approval needed
-      sbSetProgress(1,'done');
-      sbSetProgress(2,'active');
-      setTxStatus('tx-swapbridge', 'Bridging HERESY (sign in wallet)…', 'pending', true);
-      const hub = hubWriteFor();
-      const tx = await hub.bridgeNativeAndCall(destinationPayload, { value: amountInWei });
-      setTxStatus('tx-swapbridge', 'Confirming on Grotto — funds arrive on Avalanche shortly after…', 'pending', true);
-      await tx.wait(1);
-      sbSetProgress(2,'done');
-      setTxStatus('tx-swapbridge', '✅ Bridge transaction sent! Check the recipient address on Avalanche shortly.', 'success');
-      toast('Swap & Bridge sent 🎉','success');
-    } else {
-      // ERC20 path — approve the HUB (not the router), then swapAndBridge
-      const erc20 = new ethers.Contract(fromTok.address, ERC20_ABI, signer);
-      const allowance = await erc20.allowance(userAddress, GROTTO_BRIDGE_HUB);
-      if(allowance < amountInWei){
-        sbSetProgress(1,'active');
-        setTxStatus('tx-swapbridge', `Approving ${sbFromKey} for GrottoBridgeHub (sign in wallet)…`, 'pending', true);
-        const txA = await erc20.approve(GROTTO_BRIDGE_HUB, amountInWei);
-        await txA.wait(1);
-      }
-      sbSetProgress(1,'done');
-      sbSetProgress(2,'active');
-      setTxStatus('tx-swapbridge', `Swapping & bridging ${sbFromKey} (sign in wallet)…`, 'pending', true);
-      const hub = hubWriteFor();
-      const tx = await hub.swapAndBridge(fromTok.address, viaTok.address, amountInWei, minBridgeWei, destinationPayload);
-      setTxStatus('tx-swapbridge', 'Confirming on Grotto — funds arrive on Avalanche shortly after…', 'pending', true);
-      await tx.wait(1);
-      sbSetProgress(2,'done');
-      setTxStatus('tx-swapbridge', '✅ Bridge transaction sent! Check the recipient address on Avalanche shortly.', 'success');
-      toast('Swap & Bridge sent 🎉','success');
-    }
-    document.getElementById('sb-amount').value = '';
-    refreshSbBalance();
-  }catch(e){
-    setTxStatus('tx-swapbridge', '❌ '+friendlyError(e), 'error');
-    sbSetProgress(1,''); sbSetProgress(2,'');
-  }finally{
-    btn.disabled = false;
-  }
-}
-
-// ==================== WALLET ====================
-async function connectWallet(){
-  if(!window.ethereum){ toast('No wallet found. Install Core or MetaMask.','error'); return; }
-  try{
-    provider = new ethers.BrowserProvider(window.ethereum);
-    await provider.send('eth_requestAccounts',[]);
-    await switchToGrotto();
-    signer = await provider.getSigner();
-    userAddress = await signer.getAddress();
-    document.getElementById('nav-addr').style.display='inline-block';
-    document.getElementById('nav-addr').textContent = userAddress.slice(0,6)+'…'+userAddress.slice(-4);
-    document.getElementById('btn-connect').textContent='Connected';
-    document.getElementById('btn-connect').disabled = true;
-    document.getElementById('btn-bridge').textContent='Bridge $BOB';
-    toast('Wallet connected');
-    refreshBalances();
-    updateSwapButtonLabel();
-    refreshPortfolio();
-    refreshSbBalance();
-    updateSwapBridgeButtonLabel();
-  }catch(e){ toast(friendlyError(e),'error'); }
-}
-async function switchToGrotto(){
-  try{
-    await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:GROTTO_CHAIN_ID_HEX}]});
-  }catch(switchError){
-    if(switchError.code===4902){
-      await window.ethereum.request({
-        method:'wallet_addEthereumChain',
-        params:[{
-          chainId:GROTTO_CHAIN_ID_HEX,
-          chainName:'The Grotto',
-          nativeCurrency:{name:'Heresy',symbol:'heresy',decimals:18},
-          rpcUrls:[GROTTO_RPC],
-          blockExplorerUrls:[GROTTO_EXPLORER]
-        }]
-      });
-    } else { throw switchError; }
-  }
-}
-async function addTokenToWallet(){
-  if(!window.ethereum){ toast('No wallet found.','error'); return; }
-  try{
-    await window.ethereum.request({
-      method:'wallet_watchAsset',
-      params:{type:'ERC20',options:{address:BOB_REMOTE_AVAX,symbol:'BOB',decimals:18}}
-    });
-  }catch(e){ toast(friendlyError(e),'error'); }
-}
-
-// ==================== PRICES ====================
-async function refreshPrices(){
-  // Fetch each pool independently — one bad/unresponsive pool (e.g. a newly
-  // added token with a wrong pool address) must not zero out every other
-  // token's price. This used Promise.all before, which meant a single
-  // rejected call blanked out poolData entirely and permanently emptied
-  // the chart (recordPricePoint never fires if usd<=0 for everything).
-  const entries = Object.entries(TOKENS).filter(([,t])=>t.pool);
-  const settled = await Promise.allSettled(entries.map(async ([key,t])=>{
-    const pair = new ethers.Contract(t.pool, PAIR_ABI, roProvider);
-    const [reserves, token0] = await Promise.all([pair.getReserves(), pair.token0()]);
-    const tokenIsToken0 = token0.toLowerCase() === t.address.toLowerCase();
-    const rawTok = tokenIsToken0 ? reserves[0] : reserves[1];
-    const rawWheresy = tokenIsToken0 ? reserves[1] : reserves[0];
-    const tokenReserve = parseFloat(ethers.formatUnits(rawTok, t.decimals));
-    const wheresyReserve = parseFloat(ethers.formatUnits(rawWheresy, 18));
-    return [key, { tokenReserve, wheresyReserve }];
-  }));
-  settled.forEach((result, i)=>{
-    const key = entries[i][0];
-    if(result.status === 'fulfilled'){
-      poolData[key] = result.value[1];
-    } else {
-      console.warn(`pool reserves load failed for ${key}`, result.reason);
-      // keep any previously-known value rather than deleting it, so a single
-      // flaky RPC call doesn't blank an otherwise-working chart/price
-    }
-  });
-
-  try{
-    const res = await fetch(DEXSCREENER_BOB_AVAX);
-    const data = await res.json();
-    const pair = data.pair || (data.pairs && data.pairs[0]);
-    if(pair && pair.priceUsd){
-      bobUsd = parseFloat(pair.priceUsd);
-      if(poolData.BOB && poolData.BOB.tokenReserve>0){
-        const wheresyPerBob = poolData.BOB.wheresyReserve/poolData.BOB.tokenReserve;
-        wheresyUsd = wheresyPerBob>0 ? bobUsd/wheresyPerBob : 0;
-      }
-    }
-  }catch(e){ console.warn('usd price fetch failed', e); }
-
-  recordAllPricePoints();
-  updatePriceGrid();
-  updateEstimate();
-  renderChart();
-}
-function recordAllPricePoints(){
-  // Chart data must never depend on the Dexscreener fetch above succeeding -
-  // that's a single external call (often CORS-blocked or rate-limited in a
-  // browser context) and gating chart recording behind usd>0 meant EVERY
-  // token's chart silently stayed empty forever whenever that one fetch
-  // failed, even though on-chain reserves (poolData) were fetched
-  // successfully the whole time. Record whenever we have a valid
-  // on-chain-derived WHERESY price OR a usd price - usd is an optional
-  // upgrade layered on top, not a prerequisite.
-  Object.keys(TOKENS).forEach(key=>{
-    const usd = tokenUsd(key);
-    let wp; // price in WHERESY terms
-    if(key==='WHERESY'||key==='HERESY') wp = 1;
-    else{
-      const info = poolData[key];
-      wp = (info && info.tokenReserve>0) ? info.wheresyReserve/info.tokenReserve : 0;
-    }
-    if(usd>0 || wp>0) recordPricePoint(key, usd, wp);
-  });
-  savePriceHistory();
-}
-function tokenUsd(key){
-  if(key==='BOB') return bobUsd;
-  if(key==='HERESY'||key==='WHERESY') return wheresyUsd;
-  const info = poolData[key];
-  if(!info || info.tokenReserve<=0 || wheresyUsd<=0) return 0;
-  const wheresyPerToken = info.wheresyReserve/info.tokenReserve;
-  return wheresyPerToken*wheresyUsd;
-}
-function updatePriceGrid(){
-  document.getElementById('pc1-icon').src = iconFor(fromKey);
-  document.getElementById('pc1-label').textContent = '$'+fromKey;
-  document.getElementById('pc1-val').textContent = fmtUsd(tokenUsd(fromKey));
-  document.getElementById('pc1-sub').textContent = fromKey==='BOB' ? 'via Avax dexscreener ref.' : 'derived from WHERESY pool';
-
-  document.getElementById('pc2-label').textContent = `1 ${fromKey} ≈`;
-  const rate = quoteRatePreview();
-  document.getElementById('pc2-val').textContent = rate!=null ? `${fmtAdaptive(rate)} ${toKey}` : '–';
-
-  document.getElementById('pc3-icon').src = iconFor('WHERESY');
-  document.getElementById('pc3-val').textContent = fmtUsd(wheresyUsd);
-}
-// cheap local estimate for the price-grid card only (not used for the actual swap quote)
-function quoteRatePreview(){
-  if(fromKey===toKey) return null;
-  const fu = tokenUsd(fromKey), tu = tokenUsd(toKey);
-  if(fu>0 && tu>0) return fu/tu;
-  return null;
-}
-
-// ==================== ROUTING DISPLAY ====================
-function updateRouteLine(){
-  const line = document.getElementById('route-line');
-  if(fromKey===toKey){ line.textContent=''; return; }
-  if((fromKey==='WHERESY'&&toKey==='HERESY')||(fromKey==='HERESY'&&toKey==='WHERESY')){
-    line.textContent = fromKey==='HERESY' ? 'Route: wrap HERESY → WHERESY (1:1, no fee)' : 'Route: unwrap WHERESY → HERESY (1:1, no fee)';
-    return;
-  }
-  const fromHub = fromKey==='WHERESY'||fromKey==='HERESY';
-  const toHub = toKey==='WHERESY'||toKey==='HERESY';
-  if(fromHub || toHub){
-    line.textContent = `Route: ${fromKey} → pool → ${toKey} · via HeresyRouter`;
-  } else {
-    line.textContent = `Route: ${fromKey} → WHERESY → ${toKey} · via HeresyRouter`;
-  }
-}
-function flipDirection(){
-  const btn = document.getElementById('flip-btn');
-  btn.classList.add('spin');
-  setTimeout(()=>btn.classList.remove('spin'),400);
-  const tmp = fromKey; fromKey = toKey; toKey = tmp;
-  setPickerUI('from', fromKey);
-  setPickerUI('to', toKey);
-  document.getElementById('in-amount').value='';
-  document.getElementById('out-amount').value='';
-  updateRouteLine();
-  updatePriceGrid();
-  updateEstimate();
-  refreshBalances();
-  updateSwapButtonLabel();
-}
-function setSlippage(v, btn){
-  slippagePct = v;
-  document.querySelectorAll('.slip-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('custom-slip').value = '';
-  updateEstimate();
-}
-function setCustomSlippage(v){
-  const n = parseFloat(v);
-  if(!v || isNaN(n) || n<=0){ return; }
-  slippagePct = Math.min(n, 50);
-  document.querySelectorAll('.slip-btn').forEach(b=>b.classList.remove('active'));
-  updateEstimate();
-}
-function onAmountChange(){
-  clearTimeout(estimateTimer);
-  estimateTimer = setTimeout(updateEstimate, 300);
-}
-
-function routerAddrFor(key){
-  return TOKENS[key].type==='native' ? ethers.ZeroAddress : TOKENS[key].address;
-}
-
-function estimateImpact(amtIn, amountOut){
-  let info=null, dir=null;
-  if((fromKey==='WHERESY'||fromKey==='HERESY') && poolData[toKey]){ info=poolData[toKey]; dir='out'; }
-  else if((toKey==='WHERESY'||toKey==='HERESY') && poolData[fromKey]){ info=poolData[fromKey]; dir='in'; }
-  if(!info) return fromKey==='WHERESY'||fromKey==='HERESY'||toKey==='WHERESY'||toKey==='HERESY' ? '–' : '~ (2-hop)';
-  let spot;
-  if(dir==='out'){
-    const rate = info.wheresyReserve>0 ? info.tokenReserve/info.wheresyReserve : 0;
-    spot = amtIn*rate;
-  } else {
-    const rate = info.tokenReserve>0 ? info.wheresyReserve/info.tokenReserve : 0;
-    spot = amtIn*rate;
-  }
-  if(spot<=0) return '–';
-  const impact = ((spot-amountOut)/spot)*100;
-  return impact.toFixed(2)+'%';
-}
-
-async function updateEstimate(){
-  const amtIn = parseFloat(document.getElementById('in-amount').value || '0');
-  const outEl = document.getElementById('out-amount');
-
-  if(!amtIn || amtIn<=0 || fromKey===toKey){
-    outEl.value='';
-    document.getElementById('usd-from').textContent='≈ $0.00';
-    document.getElementById('usd-to').textContent='≈ $0.00';
-    document.getElementById('det-price').textContent='–';
-    document.getElementById('det-impact').textContent='–';
-    document.getElementById('det-min').textContent='–';
-    document.getElementById('det-fee').textContent='–';
-    return;
-  }
-
-  document.getElementById('usd-from').textContent = '≈ ' + fmtUsd(amtIn * tokenUsd(fromKey));
-
-  const fromTok = TOKENS[fromKey], toTok = TOKENS[toKey];
-  const amountInWei = ethers.parseUnits(amtIn.toString(), fromTok.decimals);
-
-  let q;
-  try{
-    q = await routerRO.quote(routerAddrFor(fromKey), routerAddrFor(toKey), amountInWei);
-  }catch(e){
-    outEl.value='';
-    document.getElementById('det-impact').textContent='–';
-    return;
-  }
-  const amountOutRaw = q[0], feeRaw = q[1], routeExists = q[2];
-
-  if(!routeExists){
-    outEl.value='';
-    document.getElementById('usd-to').textContent='≈ $0.00';
-    document.getElementById('det-price').textContent='No route';
-    document.getElementById('det-impact').textContent='–';
-    document.getElementById('det-min').textContent='–';
-    document.getElementById('det-fee').textContent='–';
-    return;
-  }
-
-  const amountOut = parseFloat(ethers.formatUnits(amountOutRaw, toTok.decimals));
-  const feeAmt = parseFloat(ethers.formatUnits(feeRaw, fromTok.decimals));
-
-  outEl.value = amountOut>0 ? fmtAdaptive(amountOut) : '';
-  pulse(outEl);
-  document.getElementById('usd-to').textContent = '≈ ' + fmtUsd(amountOut * tokenUsd(toKey));
-
-  const rate = amtIn>0 && amountOut>0 ? amountOut/amtIn : 0;
-  document.getElementById('det-price').textContent = amountOut>0 ? `1 ${fromKey} ≈ ${fmtAdaptive(rate)} ${toKey}` : '–';
-  document.getElementById('det-impact').textContent = amountOut>0 ? estimateImpact(amtIn, amountOut) : '–';
-
-  const minReceived = amountOut * (1 - slippagePct/100);
-  document.getElementById('det-min').textContent = amountOut>0 ? fmtAdaptive(minReceived)+' '+toKey : '–';
-  document.getElementById('det-fee').textContent = feeAmt>0 ? fmtAdaptive(feeAmt)+' '+fromKey+' (1%)' : 'No fee (wrap/unwrap)';
-}
-
-async function getBalance(key){
-  if(!userAddress) return 0;
-  const t = TOKENS[key];
-  try{
-    if(t.type==='native'){
-      const bal = await roProvider.getBalance(userAddress);
-      return parseFloat(ethers.formatUnits(bal, 18));
-    } else {
-      const c = new ethers.Contract(t.address, ERC20_ABI, roProvider);
-      const bal = await c.balanceOf(userAddress);
-      return parseFloat(ethers.formatUnits(bal, t.decimals));
-    }
-  }catch(e){ return 0; }
-}
-async function refreshBalances(){
-  document.getElementById('bal-from').textContent='Balance: –';
-  document.getElementById('bal-to').textContent='Balance: –';
-  if(!userAddress) return;
-  const [fromBal, toBal] = await Promise.all([getBalance(fromKey), getBalance(toKey)]);
-  document.getElementById('bal-from').textContent = 'Balance: ' + fmtAdaptive(fromBal);
-  document.getElementById('bal-to').textContent = 'Balance: ' + fmtAdaptive(toBal);
-}
-function updateSwapButtonLabel(){
-  const btn = document.getElementById('btn-swap');
-  if(!userAddress){ btn.textContent='Connect Wallet'; btn.disabled=false; return; }
-  if(fromKey===toKey){ btn.textContent='Choose different tokens'; btn.disabled=true; return; }
-  btn.textContent = `Swap ${fromKey} → ${toKey}`;
-  btn.disabled=false;
-}
-
-async function doSwap(){
-  if(!userAddress){ connectWallet(); return; }
-  const amtIn = parseFloat(document.getElementById('in-amount').value || '0');
-  if(!amtIn || amtIn<=0){ toast('Enter an amount','error'); return; }
-  if(fromKey===toKey){ toast('Pick two different tokens','error'); return; }
-
-  const fromTok = TOKENS[fromKey], toTok = TOKENS[toKey];
-  const amountInWei = ethers.parseUnits(amtIn.toString(), fromTok.decimals);
-  const fromAddr = routerAddrFor(fromKey), toAddr = routerAddrFor(toKey);
-
-  let q;
-  try{
-    q = await routerRO.quote(fromAddr, toAddr, amountInWei);
-  }catch(e){ toast('Could not fetch a quote — try again','error'); return; }
-
-  const amountOutRaw = q[0], routeExists = q[2];
-  if(!routeExists || amountOutRaw === 0n){
-    toast('No route or not enough liquidity for this amount','error');
-    return;
-  }
-  const slippageBps = BigInt(Math.round((1 - slippagePct/100) * 10000));
-  const amountOutMin = (amountOutRaw * slippageBps) / 10000n;
-
-  const btn = document.getElementById('btn-swap');
-  const coin = document.getElementById('coin-fly');
-  document.getElementById('coin-fly-img').src = iconFor(toKey);
-  btn.disabled = true;
-  coin.classList.add('go');
-
-  const needsApprove = fromTok.type !== 'native';
-  resetProgress(needsApprove);
-  if(!needsApprove) setProgress(1,'done');
-
-  const deadline = Math.floor(Date.now()/1000) + 20*60; // 20 min
-
-  try{
-    if(needsApprove){
-      const erc20 = new ethers.Contract(fromTok.address, ERC20_ABI, signer);
-      const allowance = await erc20.allowance(userAddress, ROUTER_ADDRESS);
-      if(allowance < amountInWei){
-        setProgress(1,'active');
-        setTxStatus('tx-swap', `Approving ${fromKey} for the router (sign in wallet)…`, 'pending', true);
-        const txA = await erc20.approve(ROUTER_ADDRESS, amountInWei);
-        await txA.wait(1);
-      }
-      setProgress(1,'done');
-    }
-
-    setProgress(2,'active');
-    setTxStatus('tx-swap', `Swapping ${fromKey} → ${toKey} (sign in wallet)…`, 'pending', true);
-
-    const routerWrite = new ethers.Contract(ROUTER_ADDRESS, ROUTER_ABI, signer);
-    let tx;
-    if(fromTok.type === 'native'){
-      tx = await routerWrite.swapExactNativeForTokens(toAddr, amountOutMin, userAddress, deadline, { value: amountInWei });
-    } else if(toTok.type === 'native'){
-      tx = await routerWrite.swapExactTokensForNative(fromTok.address, amountInWei, amountOutMin, userAddress, deadline);
-    } else {
-      tx = await routerWrite.swapExactTokensForTokens(fromTok.address, toTok.address, amountInWei, amountOutMin, userAddress, deadline);
-    }
-    const receipt = await tx.wait(1);
-    setProgress(2,'done');
-
-    setTxStatus('tx-swap','✅ Swap complete!','success');
-    toast('Swap complete 🎉','success');
-    pushTxHistory({
-      type: 'swap',
-      from: fromKey,
-      to: toKey,
-      amountIn: amtIn,
-      amountOut: parseFloat(ethers.formatUnits(amountOutRaw, toTok.decimals)),
-      hash: receipt?.hash || tx.hash,
-      t: Date.now()
-    });
-    document.getElementById('in-amount').value='';
-    document.getElementById('out-amount').value='';
-    refreshPrices();
-    refreshBalances();
-    if(document.getElementById('page-portfolio').classList.contains('active')) refreshPortfolio();
-  }catch(e){
-    setTxStatus('tx-swap','❌ '+friendlyError(e),'error');
-    setProgress(1,''); setProgress(2,'');
-  }finally{
-    btn.disabled = false;
-    setTimeout(()=>coin.classList.remove('go'),1000);
-  }
-}
-
-// ==================== BRIDGE ====================
-async function refreshBridgeBalances(){
-  document.getElementById('bal-bob-grotto').textContent = '–';
-  document.getElementById('bal-bob-avax').textContent = '–';
-  if(!userAddress) return;
-  try{
-    const bal = await bobRO.balanceOf(userAddress);
-    document.getElementById('bal-bob-grotto').textContent = fmtAdaptive(parseFloat(ethers.formatUnits(bal,18))) + ' BOB';
-  }catch(e){}
-  try{
-    const avaxProvider = new ethers.JsonRpcProvider(AVAX_C_RPC);
-    const remote = new ethers.Contract(BOB_REMOTE_AVAX, ERC20_ABI, avaxProvider);
-    const bal = await remote.balanceOf(userAddress);
-    document.getElementById('bal-bob-avax').textContent = fmtAdaptive(parseFloat(ethers.formatUnits(bal,18))) + ' BOB';
-  }catch(e){}
-}
-async function doBridge(){
-  if(!userAddress){ connectWallet(); return; }
-  const amtStr = document.getElementById('bridge-amount').value;
-  const amt = parseFloat(amtStr || '0');
-  if(!amt || amt<=0){ toast('Enter an amount to bridge','error'); return; }
-  const recipientInput = document.getElementById('bridge-recipient').value.trim();
-  const recipient = recipientInput || userAddress;
-  if(!ethers.isAddress(recipient)){ toast('Recipient is not a valid address','error'); return; }
-  const requiredGasLimit = BigInt(document.getElementById('bridge-gaslimit').value || '350000');
-  const feeAmt = parseFloat(document.getElementById('bridge-fee').value || '0');
-
-  const btn = document.getElementById('btn-bridge');
-  btn.disabled = true;
-  try{
-    setTxStatus('tx-bridge','Reading Avalanche C-Chain blockchain ID…','pending',true);
-    const avaxProvider = new ethers.JsonRpcProvider(AVAX_C_RPC);
-    const warpAvax = new ethers.Contract(WARP_PRECOMPILE, WARP_ABI, avaxProvider);
-    const destinationBlockchainID = await warpAvax.getBlockchainID();
-
-    const amountWei = ethers.parseUnits(amt.toString(), 18);
-    const feeWei = ethers.parseUnits(feeAmt.toString(), 18);
-
-    const bobWrite = new ethers.Contract(BOB_GROTTO, ERC20_ABI, signer);
-    const homeWrite = new ethers.Contract(BOB_HOME_GROTTO, TOKEN_HOME_ABI, signer);
-
-    const totalNeeded = amountWei + feeWei;
-    const allowance = await bobWrite.allowance(userAddress, BOB_HOME_GROTTO);
-    if(allowance < totalNeeded){
-      setTxStatus('tx-bridge','Step 1/2 — Approve $BOB for the bridge (sign in wallet)…','pending',true);
-      const txA = await bobWrite.approve(BOB_HOME_GROTTO, totalNeeded);
-      await txA.wait(1);
-    }
-
-    const input = {
-      destinationBlockchainID,
-      destinationTokenTransferrerAddress: BOB_REMOTE_AVAX,
-      recipient,
-      primaryFeeTokenAddress: BOB_GROTTO,
-      primaryFee: feeWei,
-      secondaryFee: 0n,
-      requiredGasLimit,
-      multiHopFallback: ethers.ZeroAddress
-    };
-
-    setTxStatus('tx-bridge','Step 2/2 — Sending across the bridge (sign in wallet)…','pending',true);
-    const tx = await homeWrite.send(input, amountWei);
-    setTxStatus('tx-bridge','Confirming on Grotto — funds arrive on Avalanche shortly after…','pending',true);
-    const receipt = await tx.wait(1);
-    setTxStatus('tx-bridge','✅ Bridge transaction sent! Wrapped $BOB should land on Avalanche within a couple minutes.','success');
-    toast('Bridge tx sent 🎉','success');
-    pushTxHistory({
-      type: 'bridge',
-      amountIn: amt,
-      recipient,
-      hash: receipt?.hash || tx.hash,
-      chain: 'avax-warp',
-      t: Date.now()
-    });
-    document.getElementById('bridge-amount').value='';
-    refreshBridgeBalances();
-    if(document.getElementById('page-portfolio').classList.contains('active')) refreshPortfolio();
-  }catch(e){
-    setTxStatus('tx-bridge','❌ '+friendlyError(e)+' — try "Open Official Bridge" instead.','error');
-  }finally{
-    btn.disabled = false;
-  }
-}
-
-// ==================== CHART ====================
-function chartableTokens(){
-  // Any token we can price: HERESY/WHERESY (pegged) + anything with a pool.
-  return Object.keys(TOKENS).filter(k => k==='HERESY' || k==='WHERESY' || TOKENS[k].pool);
-}
-function buildChartTabs(){
-  const wrap = document.getElementById('chart-tabs');
-  wrap.innerHTML = '';
-  chartableTokens().forEach(key=>{
-    const btn = document.createElement('button');
-    btn.className = 'chart-tab' + (key===chartTokenKey ? ' active' : '');
-    btn.innerHTML = `<img src="${iconFor(key)}" alt=""/><span>${key}</span>`;
-    btn.onclick = ()=> setActiveChartToken(key);
-    wrap.appendChild(btn);
-  });
-}
-function setActiveChartToken(key){
-  chartTokenKey = key;
-  document.querySelectorAll('.chart-tab').forEach((el,i)=>{
-    el.classList.toggle('active', chartableTokens()[i]===key);
-  });
-  renderChart();
-}
-function setChartRange(mins, btn){
-  chartRangeMins = mins;
-  document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderChart();
-}
-function filteredHistory(key){
-  const arr = priceHistory[key] || [];
-  if(!chartRangeMins) return arr;
-  const cutoff = Date.now() - chartRangeMins*60*1000;
-  return arr.filter(p=>p.t >= cutoff);
-}
-function renderChart(){
-  if(typeof Chart === 'undefined') return;
-  const key = chartTokenKey;
-  const t = TOKENS[key];
-  if(!t) return;
-  document.getElementById('chart-icon').src = iconFor(key);
-  document.getElementById('chart-sym').textContent = key;
-  const curUsd = tokenUsd(key);
-  document.getElementById('chart-px').textContent = fmtUsd(curUsd);
-
-  const data = filteredHistory(key);
-  const empty = document.getElementById('chart-empty');
-  const canvas = document.getElementById('price-chart');
-  const changeEl = document.getElementById('chart-change');
-
-  if(data.length < 2){
-    empty.style.display = 'flex';
-    canvas.style.visibility = 'hidden';
-    changeEl.textContent = '–';
-    changeEl.className = 'chart-change flat';
-    if(priceChart){ priceChart.destroy(); priceChart = null; }
-    return;
-  }
-  empty.style.display = 'none';
-  canvas.style.visibility = 'visible';
-
-  // Prefer USD when the whole visible range has it; otherwise fall back to
-  // the WHERESY-denominated series, which is always available since it
-  // comes straight from on-chain reserves with no external dependency.
-  const haveUsdSeries = data.every(p => p.usd > 0);
-  const seriesKey = haveUsdSeries ? 'usd' : 'wheresy';
-  const seriesUnit = haveUsdSeries ? '' : ' WHERESY';
-  document.getElementById('chart-px').textContent = haveUsdSeries ? fmtUsd(curUsd) : fmtAdaptive(data[data.length-1].wheresy)+' WHERESY';
-
-  const first = data[0][seriesKey], last = data[data.length-1][seriesKey];
-  const pct = first>0 ? ((last-first)/first)*100 : 0;
-  changeEl.textContent = (pct>=0?'▲ ':'▼ ') + Math.abs(pct).toFixed(2) + '%';
-  changeEl.className = 'chart-change ' + (pct>0.001 ? 'up' : pct<-0.001 ? 'down' : 'flat');
-
-  const labels = data.map(p => new Date(p.t).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));
-  const values = data.map(p => p[seriesKey]);
-  const rising = last >= first;
-  const lineColor = rising ? '#22C55E' : '#E8350A';
-
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createLinearGradient(0,0,0,220);
-  gradient.addColorStop(0, rising ? 'rgba(34,197,94,.35)' : 'rgba(232,53,10,.35)');
-  gradient.addColorStop(1, rising ? 'rgba(34,197,94,0)' : 'rgba(232,53,10,0)');
-
-  if(priceChart){
-    priceChart.data.labels = labels;
-    priceChart.data.datasets[0].data = values;
-    priceChart.data.datasets[0].borderColor = lineColor;
-    priceChart.data.datasets[0].backgroundColor = gradient;
-    priceChart.update('none');
-    return;
-  }
-
-  priceChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        data: values,
-        borderColor: lineColor,
-        backgroundColor: gradient,
-        fill: true,
-        tension: 0.35,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        pointHoverBackgroundColor: '#FF6B1A',
-        pointHoverBorderColor: '#0A0A0A',
-        borderWidth: 2,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { intersect: false, mode: 'index' },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#14171c',
-          borderColor: '#2A2A2A',
-          borderWidth: 1,
-          titleColor: '#888888',
-          bodyColor: '#F0F0F0',
-          bodyFont: { family: 'DM Mono' },
-          padding: 10,
-          displayColors: false,
-          callbacks: { label: (c)=> fmtUsd(c.parsed.y) }
-        }
-      },
-      scales: {
-        x: { display: false, grid: { display: false } },
-        y: {
-          display: true,
-          position: 'right',
-          grid: { color: 'rgba(255,255,255,.05)' },
-          ticks: { color: '#888888', font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 5, callback: (v)=> fmtUsd(v) }
-        }
-      }
-    }
-  });
-}
-
-// ==================== PORTFOLIO ====================
-async function refreshPortfolio(){
-  if(!userAddress){
-    document.getElementById('portfolio-disconnected').style.display = 'block';
-    document.getElementById('portfolio-connected').style.display = 'none';
-    return;
-  }
-  document.getElementById('portfolio-disconnected').style.display = 'none';
-  document.getElementById('portfolio-connected').style.display = 'block';
-  document.getElementById('pf-addr').textContent = userAddress.slice(0,6)+'…'+userAddress.slice(-4) + ' · The Grotto';
-
-  const holdingsEl = document.getElementById('pf-holdings');
-  holdingsEl.innerHTML = '<div class="portfolio-empty">Loading balances…</div>';
-
-  const keys = Object.keys(TOKENS);
-  const balances = await Promise.all(keys.map(k => getBalance(k)));
-  const rows = keys.map((key,i)=>{
-    const bal = balances[i];
-    const usd = bal * tokenUsd(key);
-    return { key, bal, usd };
-  }).filter(r => r.bal > 0);
-
-  const total = rows.reduce((s,r)=>s+r.usd, 0);
-  document.getElementById('pf-total').textContent = fmtUsd(total);
-
-  if(rows.length === 0){
-    holdingsEl.innerHTML = '<div class="portfolio-empty">No token balances found on The Grotto for this wallet yet. Swap something to get started.</div>';
-  } else {
-    rows.sort((a,b)=> b.usd - a.usd);
-    const maxUsd = Math.max(...rows.map(r=>r.usd), 0.0001);
-    holdingsEl.innerHTML = rows.map(r=>{
-      const t = TOKENS[r.key];
-      const pct = total>0 ? (r.usd/total*100) : 0;
-      return `<div class="holding-row">
-        <img src="${iconFor(r.key)}" alt=""/>
-        <div class="holding-info">
-          <div class="holding-sym">${r.key}${t.lowLiq?' <span class="liq-flag" style="margin-left:4px;">⚠ thin</span>':''}</div>
-          <div class="holding-sub">${fmtAdaptive(r.bal)} ${r.key} · ${pct.toFixed(1)}% of portfolio</div>
-          <div class="holding-bar"><div class="fill" style="width:${Math.max(pct,1.5)}%;"></div></div>
-        </div>
-        <div class="holding-amounts">
-          <div class="holding-bal">${fmtUsd(r.usd)}</div>
-          <div class="holding-usd">@ ${fmtUsd(tokenUsd(r.key))}</div>
-        </div>
-        <div class="holding-actions">
-          <button class="btn btn-primary btn-sm" onclick="quickSell('${r.key}')">Sell</button>
-          <button class="btn btn-ghost btn-sm" onclick="openSendModal('${r.key}')">Send</button>
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  renderTxHistory();
-  loadOnchainHistory(true);
-}
-
-// ==================== QUICK SELL ====================
-function quickSell(key){
-  // Jump to the Swap page pre-loaded with this token ready to sell against
-  // HERESY (or WHERESY, if the token being sold IS HERESY), full balance
-  // pre-filled. User still reviews the quote and confirms the swap there —
-  // this never fires a transaction on its own.
-  fromKey = key;
-  toKey = (key === 'HERESY') ? 'WHERESY' : 'HERESY';
-  setPickerUI('from', fromKey);
-  setPickerUI('to', toKey);
-  updateRouteLine();
-  updatePriceGrid();
-  refreshBalances();
-  updateSwapButtonLabel();
-  showPage('swap');
-  getBalance(key).then(bal=>{
-    if(bal>0){
-      document.getElementById('in-amount').value = bal;
-      onAmountChange();
-    }
-  });
-  toast(`Loaded ${key} → ${toKey}. Review and confirm the swap below.`,'info');
-}
-
-// ==================== SEND / TRANSFER ====================
-let sendModalKey = null;
-function openSendModal(key){
-  if(!userAddress){ toast('Connect your wallet first','error'); return; }
-  sendModalKey = key;
-  document.getElementById('send-modal-sym').textContent = key;
-  document.getElementById('send-recipient').value = '';
-  document.getElementById('send-amount').value = '';
-  document.getElementById('send-modal-status').className = 'tx-status';
-  document.getElementById('send-max-label').textContent = '…';
-  getBalance(key).then(bal=>{ document.getElementById('send-max-label').textContent = fmtAdaptive(bal); });
-  document.getElementById('send-modal').classList.add('open');
-}
-function closeSendModal(){
-  document.getElementById('send-modal').classList.remove('open');
-  sendModalKey = null;
-}
-function fillSendMax(){
-  const label = document.getElementById('send-max-label').textContent;
-  if(label && label !== '…') document.getElementById('send-amount').value = label;
-}
-async function submitSend(){
-  if(!sendModalKey || !userAddress) return;
-  const key = sendModalKey;
-  const t = TOKENS[key];
-  const recipient = document.getElementById('send-recipient').value.trim();
-  const amt = parseFloat(document.getElementById('send-amount').value || '0');
-  if(!ethers.isAddress(recipient)){ toast('Enter a valid recipient address','error'); return; }
-  if(!amt || amt<=0){ toast('Enter an amount','error'); return; }
-  const btn = document.getElementById('send-modal-confirm');
-  btn.disabled = true;
-  try{
-    setTxStatus('send-modal-status', `Sending ${key} (sign in wallet)…`, 'pending', true);
-    const amountWei = ethers.parseUnits(amt.toString(), t.decimals);
-    let tx;
-    if(t.type === 'native'){
-      tx = await signer.sendTransaction({ to: recipient, value: amountWei });
-    } else {
-      const erc20 = new ethers.Contract(t.address, ERC20_ABI, signer);
-      tx = await erc20.transfer(recipient, amountWei);
-    }
-    setTxStatus('send-modal-status', 'Confirming on-chain…', 'pending', true);
-    await tx.wait(1);
-    setTxStatus('send-modal-status', '✅ Sent!', 'success');
-    toast(`Sent ${fmtAdaptive(amt)} ${key} 🎉`, 'success');
-    refreshBalances();
-    refreshPortfolio();
-    setTimeout(closeSendModal, 1200);
-  }catch(e){
-    setTxStatus('send-modal-status', '❌ '+friendlyError(e), 'error');
-  }finally{
-    btn.disabled = false;
-  }
-}
-
-// ==================== ON-CHAIN ACTIVITY (Blockscout API) ====================
-const BLOCKSCOUT_API_BASE = 'https://grottoexplorer.xyz/api/v2';
-let onchainNextParams = null;
-let onchainItems = [];
-async function loadOnchainHistory(reset){
-  const listEl = document.getElementById('pf-onchain-list');
-  const moreBtn = document.getElementById('onchain-loadmore-btn');
-  if(!userAddress){
-    listEl.innerHTML = '<div class="portfolio-empty">Connect a wallet to load on-chain history.</div>';
-    moreBtn.style.display = 'none';
-    return;
-  }
-  if(reset){
-    onchainItems = [];
-    onchainNextParams = null;
-    listEl.innerHTML = '<div class="portfolio-empty">Loading on-chain history…</div>';
-  }
-  let url = `${BLOCKSCOUT_API_BASE}/addresses/${userAddress}/transactions`;
-  if(onchainNextParams){
-    const qs = new URLSearchParams(onchainNextParams).toString();
-    url += `?${qs}`;
-  }
-  try{
-    const res = await fetch(url);
-    if(!res.ok) throw new Error('explorer API returned ' + res.status);
-    const data = await res.json();
-    const items = data.items || [];
-    onchainItems = reset ? items : onchainItems.concat(items);
-    onchainNextParams = data.next_page_params || null;
-    renderOnchainHistory();
-    moreBtn.style.display = onchainNextParams ? 'block' : 'none';
-  }catch(e){
-    console.warn('on-chain history load failed', e);
-    if(onchainItems.length === 0){
-      listEl.innerHTML = `<div class="portfolio-empty">Couldn't load on-chain history from the explorer right now. <span class="clear-link" onclick="loadOnchainHistory(true)">Try again</span>, or view it directly on <a class="addr-link" href="https://grottoexplorer.xyz/address/${userAddress}" target="_blank">grottoexplorer.xyz ↗</a>.</div>`;
-    }
-    moreBtn.style.display = 'none';
-  }
-}
-function renderOnchainHistory(){
-  const listEl = document.getElementById('pf-onchain-list');
-  if(onchainItems.length === 0){
-    listEl.innerHTML = '<div class="portfolio-empty">No on-chain transactions found for this address yet.</div>';
-    return;
-  }
-  listEl.innerHTML = onchainItems.map(tx=>{
-    const hash = tx.hash || '';
-    const when = tx.timestamp ? new Date(tx.timestamp).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
-    const status = tx.status === 'ok' ? 'ok' : (tx.status === 'error' ? 'fail' : '');
-    const statusLabel = tx.status === 'ok' ? 'Success' : (tx.status === 'error' ? 'Failed' : (tx.result || 'Pending'));
-    const method = tx.method || (tx.tx_types && tx.tx_types[0]) || 'Transfer';
-    const toAddr = tx.to && tx.to.hash ? tx.to.hash : (tx.to || '');
-    const toLabel = tx.to && tx.to.is_contract ? (tx.to.name || 'Contract') : 'Address';
-    const valueEth = tx.value ? (parseFloat(tx.value)/1e18) : 0;
-    return `<div class="tx-row">
-      <div class="tx-icons"><img src="${iconFor('HERESY')}" alt=""/></div>
-      <div class="tx-info">
-        <div class="tx-title">${method}${toAddr?` → ${toLabel} ${toAddr.slice(0,6)}…${toAddr.slice(-4)}`:''}</div>
-        <div class="tx-sub">${when}${valueEth>0?` · ${fmtAdaptive(valueEth)} HERESY`:''}</div>
-      </div>
-      <div class="tx-right">
-        <span class="tx-badge tx-onchain-badge ${status}">${statusLabel}</span><br/>
-        <a class="tx-link" href="https://grottoexplorer.xyz/tx/${hash}" target="_blank">${hash.slice(0,8)}… ↗</a>
-      </div>
-    </div>`;
-  }).join('');
-}
-function renderTxHistory(){
-  const listEl = document.getElementById('pf-tx-list');
-  if(!userAddress){ listEl.innerHTML=''; return; }
-  const history = loadTxHistory();
-  if(history.length === 0){
-    listEl.innerHTML = '<div class="portfolio-empty">No swaps or bridges made through HERESY DEX yet in this browser. Once you transact, they\'ll show up here with full details.</div>';
-    return;
-  }
-  listEl.innerHTML = history.map(tx=>{
-    const when = new Date(tx.t).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-    const explorerBase = tx.chain === 'avax-warp' ? GROTTO_EXPLORER : GROTTO_EXPLORER;
-    const explorerUrl = `${explorerBase}/tx/${tx.hash}`;
-    if(tx.type === 'swap'){
-      return `<div class="tx-row">
-        <div class="tx-icons"><img src="${iconFor(tx.from)}" alt=""/><img src="${iconFor(tx.to)}" alt=""/></div>
-        <div class="tx-info">
-          <div class="tx-title">${fmtAdaptive(tx.amountIn)} ${tx.from} → ${fmtAdaptive(tx.amountOut)} ${tx.to}</div>
-          <div class="tx-sub">${when}</div>
-        </div>
-        <div class="tx-right">
-          <span class="tx-badge swap">Swap</span><br/>
-          <a class="tx-link" href="${explorerUrl}" target="_blank">${tx.hash.slice(0,8)}… ↗</a>
-        </div>
-      </div>`;
-    } else {
-      return `<div class="tx-row">
-        <div class="tx-icons"><img src="${iconFor('BOB')}" alt=""/></div>
-        <div class="tx-info">
-          <div class="tx-title">Bridged ${fmtAdaptive(tx.amountIn)} BOB → Avalanche</div>
-          <div class="tx-sub">${when} · to ${tx.recipient.slice(0,6)}…${tx.recipient.slice(-4)}</div>
-        </div>
-        <div class="tx-right">
-          <span class="tx-badge bridge">Bridge</span><br/>
-          <a class="tx-link" href="${explorerUrl}" target="_blank">${tx.hash.slice(0,8)}… ↗</a>
-        </div>
-      </div>`;
-    }
-  }).join('');
-}
-
-// ==================== INIT ====================
-buildTokenMenu('from');
-buildTokenMenu('to');
-setPickerUI('from', fromKey);
-setPickerUI('to', toKey);
-updateRouteLine();
-buildSbTokenMenu();
-setPickerUI('sb-from', sbFromKey);
-updateSbViaVisibility();
-updateSbRouteLine();
-resetSbFinalToken();
-loadPriceHistory();
-buildChartTabs();
-refreshPrices();
-setInterval(refreshPrices, 20000);
-</script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/core.js"></script>
+<script src="assets/js/icons.js"></script>
+<script src="assets/js/fx.js"></script>
+<script src="assets/js/token-menus.js"></script>
+<script src="assets/js/kyber.js"></script>
+<script src="assets/js/swapbridge.js"></script>
+<script src="assets/js/wallet.js"></script>
+<script src="assets/js/prices.js"></script>
+<script src="assets/js/swap.js"></script>
+<script src="assets/js/bridge.js"></script>
+<script src="assets/js/chart.js"></script>
+<script src="assets/js/markets.js"></script>
+<script src="assets/js/portfolio.js"></script>
+<script src="assets/js/main.js"></script>
 </body>
 </html>

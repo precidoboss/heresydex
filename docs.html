@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Docs — HERESY DEX</title>
+<meta name="description" content="HERESY DEX documentation: swapping, bridging, charts, portfolio, tokens, contracts, security and developer guide."/>
+<meta name="theme-color" content="#070708"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="assets/css/base.css"/>
+<link rel="stylesheet" href="assets/css/app.css"/>
+<link rel="stylesheet" href="assets/css/docs.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<script>window.ethers||document.write('<script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"><\/script>')</script>
+</head>
+<body>
+<div id="bg-fx"><div class="bg-glow g1"></div><div class="bg-glow g2"></div><div class="grid-fx"></div><div id="ember-layer"></div></div>
+
+<nav class="topnav">
+  <div class="nav-inner">
+    <div class="nav-left">
+      <a class="nav-logo" href="index.html"><span class="mark">🕯️</span>HERESY<span class="dex">DEX</span></a>
+      <div class="nav-tabs">
+        <a class="nav-tab" href="index.html#swap">Swap</a>
+        <a class="nav-tab" href="index.html#bridge">Bridge</a>
+        <a class="nav-tab" href="index.html#portfolio">Portfolio</a>
+        <a class="nav-tab active" href="docs.html">Docs</a>
+      </div>
+    </div>
+    <div class="nav-right"><a class="btn btn-primary btn-sm" href="index.html">Launch App →</a></div>
+  </div>
+</nav>
+<div class="bottom-bar">
+  <a href="index.html#swap"><span class="ico">⇄</span>Swap</a>
+  <a href="index.html#bridge"><span class="ico">🌉</span>Bridge</a>
+  <a href="index.html#portfolio"><span class="ico">◔</span>Portfolio</a>
+  <a class="active" href="docs.html"><span class="ico">📖</span>Docs</a>
+</div>
+
+<div class="container docs-wrap">
+  <aside class="docs-side" id="docs-side">
+    <input class="docs-search search" id="docs-search" type="search" placeholder="Search docs…" style="max-width:none"/>
+    <div class="toc">
+      <div class="toc-group">Start</div>
+      <a href="#intro" class="active">Introduction</a>
+      <a href="#quickstart">Quick start</a>
+      <div class="toc-group">Using the app</div>
+      <a href="#swapping">Swapping</a>
+      <a href="#charts">Charts &amp; prices</a>
+      <a href="#bridging">Bridging</a>
+      <a href="#portfolio">Portfolio</a>
+      <div class="toc-group">Reference</div>
+      <a href="#tokens">Tokens</a>
+      <a href="#contracts">Contracts</a>
+      <a href="#fees">Fees &amp; slippage</a>
+      <a href="#security">Security &amp; risks</a>
+      <div class="toc-group">Help</div>
+      <a href="#troubleshooting">Troubleshooting</a>
+      <a href="#faq">FAQ</a>
+      <div class="toc-group">Developers</div>
+      <a href="#developers">Repo &amp; local dev</a>
+      <a href="#add-token">Adding a token</a>
+    </div>
+  </aside>
+
+  <main class="docs-main">
+    <button class="btn btn-ghost btn-sm toc-toggle" id="toc-toggle">Contents <span>▾</span></button>
+
+    <section id="intro">
+      <h1>HERESY DEX <em>Docs</em></h1>
+      <p class="lead">HERESY DEX is a no-backend frontend for trading on <b>The Grotto</b> — an Avalanche L1 — and for moving value between The Grotto and Avalanche C-Chain. Everything you see is read straight from the chain; every action is a transaction you sign yourself.</p>
+      <div class="cards-3">
+        <a class="dcard" href="#swapping"><b>⇄ Swap</b><span>Trade any listed token through one router.</span></a>
+        <a class="dcard" href="#bridging"><b>🌉 Bridge</b><span>Send to Avalanche with an optional auto-swap.</span></a>
+        <a class="dcard" href="#portfolio"><b>◔ Portfolio</b><span>Balances, USD values and history.</span></a>
+      </div>
+      <div class="callout note"><span class="ic">ℹ️</span><p><b>Non-custodial.</b> HERESY DEX never holds your funds or keys. The site is static HTML/JS; it talks to your wallet and to public RPC / explorer endpoints.</p></div>
+    </section>
+
+    <section id="quickstart">
+      <h2>Quick start</h2>
+      <ol>
+        <li><b>Open the app</b> and press <b>Connect Wallet</b>. If you have several browser wallets (Core, MetaMask…), HERESY DEX lists them all — pick one.</li>
+        <li><b>Approve the network switch.</b> The app asks your wallet to switch to <b>The Grotto</b> (chain ID <code>36463</code>) and adds it if it's missing.</li>
+        <li><b>Choose tokens</b> in the swap card, enter an amount, and check the rate, price impact and minimum received.</li>
+        <li><b>Confirm.</b> For ERC-20 inputs you sign an approval first, then the swap. Native HERESY needs only the swap.</li>
+      </ol>
+      <div class="callout tip"><span class="ic">💡</span><p>You need a little native <b>HERESY</b> on The Grotto for gas, even when swapping other tokens.</p></div>
+    </section>
+
+    <section id="swapping">
+      <h2>Swapping</h2>
+      <p>Every listed token has a pool against <b>WHERESY</b> (wrapped HERESY). The <b>HeresyRouter</b> handles routing so you always sign a single swap transaction:</p>
+      <div class="flow"><span class="node">TOKEN A</span><span class="arr">→</span><span class="node">WHERESY</span><span class="arr">→</span><span class="node">TOKEN B</span><span style="color:var(--muted);margin-left:8px;">two-hop, when neither side is HERESY/WHERESY</span></div>
+      <ul>
+        <li><b>Direct:</b> HERESY/WHERESY ⇄ token uses a single pool.</li>
+        <li><b>Wrap / unwrap:</b> HERESY ⇄ WHERESY is 1:1 with no fee. The router wraps and unwraps native HERESY automatically.</li>
+        <li><b>Approvals:</b> for ERC-20 inputs the app approves exactly the amount you are swapping — not unlimited.</li>
+        <li><b>Deadline:</b> each swap is valid for 20 minutes; after that the router rejects it.</li>
+        <li><b>Estimates:</b> quotes come from the router's on-chain <code>quote()</code> view, refreshed as you type.</li>
+      </ul>
+      <h3>Reading the swap details</h3>
+      <table class="dtable"><thead><tr><th>Field</th><th>Meaning</th></tr></thead><tbody>
+        <tr><td><b>Rate</b></td><td>Expected output per 1 unit of the input token for your size.</td></tr>
+        <tr><td><b>Price impact</b></td><td>How far your trade moves the pool price versus spot. High on thin pools.</td></tr>
+        <tr><td><b>Min. received</b></td><td>Output × (1 − slippage). If the pool moves further than this before your transaction lands, it reverts.</td></tr>
+        <tr><td><b>Platform fee</b></td><td>1% of the input on routed swaps; none for wrap/unwrap.</td></tr>
+      </tbody></table>
+      <div class="callout warn"><span class="ic">⚠️</span><p>Tokens tagged <span class="liq-flag">thin</span> have very little liquidity. Even small trades can move the price a lot — check <b>Price impact</b> before signing.</p></div>
+    </section>
+
+    <section id="charts">
+      <h2>Charts &amp; prices</h2>
+      <p>The price chart and the Markets table are built from on-chain data, so they work for every visitor on the first load.</p>
+      <h3>Where the numbers come from</h3>
+      <ul>
+        <li><b>History (7 days):</b> every pool is a constant-product pair that emits a <code>Sync(reserve0, reserve1)</code> event on each trade or liquidity change. On load, the app reads those logs from the Grotto RPC and turns each into a price point (<code>WHERESY reserve ÷ token reserve</code>). New events are fetched incrementally and cached in your browser.</li>
+        <li><b>Live ticks:</b> reserves are polled every 20 seconds and appended to the series.</li>
+        <li><b>USD values:</b> BOB's USD price is read from a DEX aggregator reference pair on Avalanche; HERESY's USD price is derived from the BOB pool's ratio; every other token is priced through its WHERESY pool.</li>
+      </ul>
+      <h3>Chart controls</h3>
+      <ul>
+        <li><b>Token tabs</b> switch the pair. HERESY / WHERESY are shown in BOB terms, since they are pegged to each other.</li>
+        <li><b>Token / USD≈</b> toggles the unit. USD mode multiplies historical prices by the <i>current</i> HERESY/USD rate, so it is an approximation — Token mode is exact.</li>
+        <li><b>1H · 6H · 24H · 7D · ALL</b> choose the window. A flat line simply means no trades moved the pool in that window.</li>
+        <li>Click any row in <b>Markets</b> to chart it and pre-load a HERESY → token swap.</li>
+      </ul>
+      <div class="callout note"><span class="ic">ℹ️</span><p>If the RPC refuses large log queries, the app shrinks the request size automatically; if it still fails, the chart falls back to live ticks and says so under the chart.</p></div>
+    </section>
+
+    <section id="bridging">
+      <h2>Bridging</h2>
+      <p>The Bridge page has two modes.</p>
+      <h3>Swap &amp; Bridge (recommended)</h3>
+      <div class="flow"><span class="node">Any token on Grotto</span><span class="arr">→</span><span class="node">GrottoBridgeHub</span><span class="arr">→</span><span class="node">Warp / ICTT</span><span class="arr">→</span><span class="node">AvalancheBridgeReceiver</span><span class="arr">→</span><span class="node">Final token on Avalanche</span></div>
+      <ol>
+        <li><b>You send</b> any HERESY DEX token. BOB, CAVE, USDC and native HERESY are bridged directly. Any other token is first swapped into BOB, CAVE or USDC on The Grotto (you choose which under <i>Bridge via</i>).</li>
+        <li><b>Final token on Avalanche</b> defaults to the bridged asset itself. Pick another token (or paste a custom address) and the receiver swaps into it on arrival.</li>
+        <li><b>Recipient</b> defaults to your connected wallet; paste another address to send to someone else.</li>
+        <li><b>Slippage</b> applies to both legs (the Grotto swap and the Avalanche swap).</li>
+      </ol>
+      <p>The Avalanche-side swap is routed through the KyberSwap aggregator API; the app requests a route, builds the calldata, and passes it to the receiver so it can execute for you.</p>
+      <p>Funds usually arrive on Avalanche shortly after the Grotto transaction confirms. Check the recipient address on <a href="https://snowtrace.io" target="_blank" rel="noopener">Snowtrace</a>.</p>
+      <h3>Raw Bridge ($BOB only)</h3>
+      <p>Sends a direct <code>send()</code> to the <code>ERC20TokenHome</code> contract using the standard ICTT interface. The destination blockchain ID is read live from Avalanche's Warp precompile rather than hard-coded. Advanced settings let you adjust the required gas limit and a relayer fee in BOB.</p>
+      <div class="callout warn"><span class="ic">⚠️</span><p>Bridging is not instant and cannot be cancelled once sent. Always double-check the recipient address, and test with a small amount first.</p></div>
+    </section>
+
+    <section id="portfolio">
+      <h2>Portfolio</h2>
+      <ul>
+        <li><b>Holdings:</b> live balances for every listed token, valued in USD and shown as a share of your total. <b>Sell</b> jumps to Swap with the token and full balance pre-filled (you still confirm). <b>Send</b> opens a direct transfer on The Grotto.</li>
+        <li><b>Transaction history:</b> swaps and bridges made through this app. Stored only in <i>your browser</i> (localStorage) — clearing site data removes it. Nothing on-chain is affected.</li>
+        <li><b>On-chain activity:</b> every transaction for your address on The Grotto, loaded from the Grotto block explorer's API.</li>
+      </ul>
+    </section>
+
+    <section id="tokens">
+      <h2>Tokens</h2>
+      <p>Generated from the same configuration the app uses, so it never drifts.</p>
+      <table class="dtable"><thead><tr><th>Token</th><th>Type</th><th>Dec.</th><th>Address</th><th>Pool vs WHERESY</th><th>Bridgeable</th></tr></thead><tbody id="docs-token-body"></tbody></table>
+    </section>
+
+    <section id="contracts">
+      <h2>Contracts</h2>
+      <div class="card" style="padding:8px 20px;"><div id="docs-contracts"></div></div>
+      <div class="callout note" style="margin-top:16px;"><span class="ic">ℹ️</span><p>Earlier versions of the app referenced a separate "HeresyRouter on Avalanche". That was retired — the final leg on Avalanche now goes through the KyberSwap aggregator via <b>AvalancheBridgeReceiver</b>.</p></div>
+    </section>
+
+    <section id="fees">
+      <h2>Fees &amp; slippage</h2>
+      <table class="dtable"><thead><tr><th>Cost</th><th>Who gets it</th><th>Details</th></tr></thead><tbody>
+        <tr><td><b>Platform fee</b></td><td>HeresyRouter</td><td>1% of the input on routed swaps. Wrap/unwrap is free.</td></tr>
+        <tr><td><b>Price impact</b></td><td>The pool curve</td><td>Depends on pool size versus your trade size. Shown in the swap details.</td></tr>
+        <tr><td><b>Network gas</b></td><td>Validators</td><td>Paid in native HERESY on The Grotto (and AVAX only if you transact on Avalanche yourself).</td></tr>
+        <tr><td><b>Relayer fee</b></td><td>Warp relayer</td><td>Raw Bridge only, optional, set in advanced settings. Default 0.</td></tr>
+      </tbody></table>
+      <p><b>Slippage</b> is the maximum adverse price move you'll accept between quote and execution. Presets are 0.5%, 1% and 3% for swaps; 1%, 2% and 5% for Swap &amp; Bridge. Higher values succeed more often but let a trade fill at a worse price.</p>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; risks</h2>
+      <ul>
+        <li><b>You sign everything.</b> The app can't move funds without a wallet confirmation. Read what your wallet shows.</li>
+        <li><b>Exact approvals.</b> Token approvals are limited to the swap amount, so a leftover allowance can't be drained later.</li>
+        <li><b>Thin liquidity.</b> Small pools can be manipulated and may have large price impact. Treat <span class="liq-flag">thin</span> markets as high-risk.</li>
+        <li><b>Smart-contract risk.</b> The router, hub, receiver and pools are on-chain code. Bugs are possible; only trade what you can afford to lose.</li>
+        <li><b>Third parties.</b> The Avalanche leg depends on the KyberSwap API, USD references on a DEX data API, and history on the Grotto RPC and explorer. If one is down, the related feature degrades — your funds are not at risk from a data outage.</li>
+        <li><b>Local data.</b> Price cache and your local transaction list live in your browser's localStorage. They contain no keys.</li>
+      </ul>
+      <div class="callout warn"><span class="ic">⚠️</span><p>Never share your seed phrase or paste a private key or access token into any website — including this one. HERESY DEX will never ask for them.</p></div>
+    </section>
+
+    <section id="troubleshooting">
+      <h2>Troubleshooting</h2>
+      <details><summary>"Price moved past your slippage tolerance"</summary><p>The pool changed between your quote and execution. Retry, or raise slippage a little (especially on thin tokens).</p></details>
+      <details><summary>"No route" or "Not enough liquidity"</summary><p>The pair has no pool path, or the pool can't fill that size. Try a smaller amount or route via HERESY.</p></details>
+      <details><summary>My wallet isn't listed</summary><p>Reload after installing the extension. Wallets announce themselves via EIP-6963; older wallets are detected through <code>window.ethereum</code>. Disable duplicate wallet extensions if two fight over the same provider.</p></details>
+      <details><summary>The chart says "Live ticks only"</summary><p>The Grotto RPC rejected the log query. The chart still fills from live ticks every 20 seconds; history retries every 10 minutes.</p></details>
+      <details><summary>Balance shows "–" after connecting</summary><p>Make sure your wallet is on The Grotto (chain ID 36463). Switch networks and press Refresh in Portfolio.</p></details>
+      <details><summary>My bridge hasn't arrived</summary><p>Wait a few minutes after the Grotto transaction confirms, then check the recipient address on Snowtrace.</p></details>
+    </section>
+
+    <section id="faq">
+      <h2>FAQ</h2>
+      <details><summary>Is HERESY DEX custodial?</summary><p>No. There is no backend and no account. Your wallet signs every transaction.</p></details>
+      <details><summary>What's the difference between HERESY and WHERESY?</summary><p>WHERESY is wrapped HERESY (an ERC-20). They are exchangeable 1:1; the router wraps and unwraps for you.</p></details>
+      <details><summary>Why is the USD chart "approximate"?</summary><p>Historical USD is computed with today's HERESY/USD rate because the app doesn't store historical USD feeds. Token mode (priced in HERESY or BOB) is exact.</p></details>
+      <details><summary>Where is my transaction history stored?</summary><p>Swaps and bridges you make here are saved in your browser only. The "On-chain Activity" list is fetched live from the explorer and isn't stored.</p></details>
+      <details><summary>Can I list my token?</summary><p>A token needs a pool against WHERESY and a registration on the router. See <a href="#add-token">Adding a token</a>.</p></details>
+    </section>
+
+    <section id="developers">
+      <h2>Repo &amp; local dev</h2>
+      <p>Static site, no build step. Open it with any static server.</p>
+<pre><code>git clone https://github.com/precidoboss/heresydex.git
+cd heresydex
+npx serve .          # or: python3 -m http.server 8080</code></pre>
+      <h3>Layout</h3>
+<pre><code>index.html            app shell (Swap · Bridge · Portfolio)
+docs.html             this page
+assets/
+  favicon.svg
+  css/  base.css      design tokens, nav, buttons, forms, modals
+        app.css       swap, chart, markets, bridge, portfolio
+        docs.css      documentation layout
+  js/   config.js     chains, tokens, contract addresses  ← edit here
+        core.js       shared state, formatting, toasts, tx history
+        icons.js      generated fallback token icons
+        fx.js         background embers, global UI helpers
+        token-menus.js, wallet.js (EIP-6963), prices.js,
+        swap.js, kyber.js, swapbridge.js, bridge.js,
+        chart.js (on-chain history), markets.js, portfolio.js,
+        main.js       init + page routing
+        docs.js       docs behaviour</code></pre>
+      <p>Scripts are plain classic scripts loaded in order and share one global scope, so inline <code>onclick</code> handlers keep working. <code>config.js</code> loads first; <code>main.js</code> loads last.</p>
+      <h3>Deploy</h3>
+      <p>Any static host works (Vercel, GitHub Pages, Netlify). Point it at the repo root — there is nothing to build.</p>
+    </section>
+
+    <section id="add-token">
+      <h2>Adding a token</h2>
+      <ol>
+        <li>Create a WHERESY pair for the token on The Grotto's DEX.</li>
+        <li>Register that pool on <b>HeresyRouter</b> with <code>setPool()</code>. The frontend and router must agree about what is swappable.</li>
+        <li>Add an entry to <code>TOKENS</code> in <code>assets/js/config.js</code>:</li>
+      </ol>
+<pre><code>MYTOKEN: {
+  symbol: 'MYTOKEN', type: 'erc20',
+  address: '0x…token', decimals: 18,
+  pool: '0x…pair',        // WHERESY pair address
+  lowLiq: true,           // optional: shows the "thin" warning
+  icon: 'https://…/logo.png'
+},</code></pre>
+      <p>The token menu, Markets table, chart tabs, Portfolio and this docs page's token table all update from that one entry. A generated letter icon is used if you omit <code>icon</code>.</p>
+      <div class="docs-foot"><span>Found a mistake? Open an issue or PR on GitHub.</span><a href="https://github.com/precidoboss/heresydex" target="_blank" rel="noopener">github.com/precidoboss/heresydex ↗</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer"><div class="container footer-inner"><div>© HERESY DEX · built on The Grotto L1</div><div class="footer-links"><a href="index.html">App</a><a href="#contracts">Contracts</a><a href="https://grottoexplorer.xyz" target="_blank" rel="noopener">Explorer</a></div></div></footer>
+
+<script>const iconCache = {};</script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/icons.js"></script>
+<script src="assets/js/fx.js"></script>
+<script src="assets/js/docs.js"></script>
+<script>initEmbers();</script>
+</body>
+</html>
