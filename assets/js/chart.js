@@ -181,7 +181,19 @@ function buildCandles(pts, candleSecs, start, end) {
     if (p.v < c.l) c.l = p.v;
     c.c = p.v;
   }
-  return Array.from(map.values()).sort((a, b) => a.t - b.t);
+  const sorted = Array.from(map.values()).sort((a, b) => a.t - b.t);
+  // fill quiet periods with flat candles at the previous close (no gaps)
+  const out = [];
+  for (const c of sorted) {
+    if (out.length) {
+      const prev = out[out.length - 1];
+      for (let t = prev.t + size; t < c.t && t - prev.t < 2000 * size; t += size) {
+        out.push({ t, o: prev.c, h: prev.c, l: prev.c, c: prev.c, flat: true });
+      }
+    }
+    out.push(c);
+  }
+  return out;
 }
 
 function chartWindow() {
@@ -245,7 +257,7 @@ const CV = {
   canvas: null, ctx: null, w: 0, h: 0, dpr: 1, started: false,
   candles: [], sig: '', enterT: 0,
   min: 0, max: 1, tMin: 0, tMax: 1, ready: false,   // y-domain (eased toward target)
-  hoverX: null, hoverY: null
+  hoverX: null, hoverY: null, flashT: -1e9, lastClose: null
 };
 const CV_PAD = { l: 10, r: 74, t: 28, b: 26 };
 
@@ -363,6 +375,14 @@ function cvFrame(now) {
     ctx.textAlign = 'left';
     ctx.fillText(fmtChartVal(last.c), PL + pw + 6, ly);
 
+    // live tick flash: a short expanding ring when the latest close changes
+    const fAge = now - CV.flashT;
+    if (fAge < 700) {
+      const k = fAge / 700;
+      ctx.beginPath(); ctx.arc(xOf(n - 1), ly, 4 + k * 18, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${lastRgb},${0.6 * (1 - k)})`; ctx.lineWidth = 2; ctx.stroke();
+    }
+
     // live pulse on the latest candle
     const lx = xOf(n - 1);
     const pulse = (Math.sin(now / 320) + 1) / 2;
@@ -452,6 +472,10 @@ function renderChart() {
   // animate candles in only when the series identity changes
   const sig = `${key}|${chartRange}|${chartDenom}`;
   if (sig !== CV.sig) { CV.sig = sig; CV.enterT = performance.now(); }
+  if (CV.lastClose != null && sig === CV.sig && candles[candles.length - 1].c !== CV.lastClose) {
+    CV.flashT = performance.now();
+  }
+  CV.lastClose = candles[candles.length - 1].c;
   CV.candles = candles;
 
   const lo = Math.min(...candles.map(c => c.l)), hi = Math.max(...candles.map(c => c.h));
@@ -461,7 +485,7 @@ function renderChart() {
 
   const first = candles[0].o, last = candles[candles.length - 1].c;
   const pct = first > 0 ? ((last - first) / first) * 100 : 0;
-  document.getElementById('chart-px').textContent = fmtChartValUnit(last);
+  tweenText(document.getElementById('chart-px'), fmtChartValUnit(last));
   changeEl.textContent = (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct).toFixed(2) + '%';
   changeEl.className = 'chart-change ' + (pct > 0.001 ? 'up' : pct < -0.001 ? 'down' : 'flat');
   document.getElementById('stat-high').textContent = fmtChartVal(hi);
