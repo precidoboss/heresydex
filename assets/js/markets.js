@@ -2,6 +2,25 @@
 let marketsSort = { by:'liq', dir:-1 };
 let marketsFilter = '';
 
+// ---- watchlist (stars) + price-flash memory ----
+const WATCH_KEY = 'heresy_watch_v1';
+let watchOnly = false;
+let watchList = [];
+try { watchList = JSON.parse(localStorage.getItem(WATCH_KEY) || '[]') || []; } catch (e) { watchList = []; }
+const mkPrev = {};
+function isWatched(k){ return watchList.includes(k); }
+function toggleWatch(k){
+  watchList = isWatched(k) ? watchList.filter(x => x !== k) : watchList.concat(k);
+  try { localStorage.setItem(WATCH_KEY, JSON.stringify(watchList)); } catch (e) {}
+  renderMarkets();
+}
+function toggleWatchOnly(){
+  watchOnly = !watchOnly;
+  const b = document.getElementById('watch-toggle');
+  if (b) b.classList.toggle('on', watchOnly);
+  renderMarkets();
+}
+
 // 24h volume (HERESY) and trade count from the locally stored Swap history
 function poolStats24h(key){
   const cutoff = Date.now() - 86400000;
@@ -57,22 +76,29 @@ function renderMarkets(){
     const q = marketsFilter.toLowerCase();
     rows = rows.filter(r=>r.key.toLowerCase().includes(q));
   }
+  if(watchOnly) rows = rows.filter(r=>isWatched(r.key));
   const by = marketsSort.by, dir = marketsSort.dir;
   const val = r => by==='name' ? r.key : by==='price' ? (r.usd||r.wp) : by==='chg' ? (r.chg==null?-Infinity:r.chg) : by==='vol' ? r.vol : by==='txns' ? r.txns : r.liqH;
   rows.sort((a,b)=>{ const x=val(a), y=val(b); return (x>y?1:x<y?-1:0)*dir; });
 
   if(rows.length === 0){
-    body.innerHTML = `<tr><td colspan="8" class="portfolio-empty">${Object.keys(poolData).length? 'No markets match your search.' : 'Loading markets…'}</td></tr>`;
+    const msg = watchOnly ? 'No watched tokens yet. Tap ★ on a token to pin it here.'
+      : (Object.keys(poolData).length ? 'No markets match your search.' : 'Loading markets…');
+    body.innerHTML = `<tr><td colspan="8" class="portfolio-empty">${msg}</td></tr>`;
     return;
   }
   body.innerHTML = rows.map((r,i)=>{
+    const now = r.usd || r.wp;
+    const prev = mkPrev[r.key];
+    const flash = prev==null || now===prev ? '' : (now>prev ? 'flash-up' : 'flash-dn');
+    mkPrev[r.key] = now;
     const t = TOKENS[r.key];
     const chg = r.chg==null ? '<span class="chg flat">–</span>' : `<span class="chg ${r.chg>0.005?'up':r.chg<-0.005?'down':'flat'}">${r.chg>=0?'▲':'▼'} ${Math.abs(r.chg).toFixed(2)}%</span>`;
     const price = r.usd>0 ? fmtUsd(r.usd) : (r.wp>0 ? fmtAdaptive(r.wp)+' <small>HERESY</small>' : '–');
     const liq = r.liqH>0 ? (wheresyUsd>0 ? fmtUsd(r.liqUsd) : fmtAdaptive(r.liqH)+' <small>HERESY</small>') : '–';
-    return `<tr onclick="openMarket('${r.key}')" tabindex="0" onkeydown="if(event.key==='Enter')openMarket('${r.key}')">
+    return `<tr class="${flash}" onclick="openMarket('${r.key}')" tabindex="0" onkeydown="if(event.key==='Enter')openMarket('${r.key}')">
       <td class="rank">${i+1}</td>
-      <td><div class="mk-token"><img src="${iconFor(r.key)}" alt=""/><div><b>${r.key}</b>${t.lowLiq?' <span class="liq-flag">thin</span>':''}<div class="mk-sub">${r.key} / HERESY</div></div></div></td>
+      <td><div class="mk-token"><button class="star ${isWatched(r.key)?'on':''}" aria-label="Watch ${r.key}" onclick="event.stopPropagation();toggleWatch('${r.key}')">★</button><img src="${iconFor(r.key)}" alt=""/><div><b>${r.key}</b>${t.lowLiq?' <span class="liq-flag">thin</span>':''}<div class="mk-sub">${r.key} / HERESY</div></div></div></td>
       <td class="num">${price}</td>
       <td class="num">${chg}</td>
       <td class="num hide-sm">${r.vol>0 ? (wheresyUsd>0 ? fmtUsd(r.vol*wheresyUsd) : fmtAdaptive(r.vol)+' <small>HERESY</small>') : '–'}</td>

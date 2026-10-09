@@ -161,7 +161,7 @@
       <div class="card">
         <div class="table-head">
           <h3>Markets</h3>
-          <input class="search" type="search" placeholder="Search tokens…" oninput="filterMarkets(this.value)"/>
+          <div class="mk-tools"><button class="chip" id="watch-toggle" onclick="toggleWatchOnly()">★ Watchlist</button><input class="search" type="search" placeholder="Search tokens…" oninput="filterMarkets(this.value)"/></div>
         </div>
         <div class="table-wrap">
           <table class="markets" id="markets-table">
@@ -175,7 +175,7 @@
               <th class="num hide-sm sorted" data-sort="liq" data-dir="▼" onclick="sortMarkets('liq')">Liquidity</th>
               <th class="hide-sm">Trend</th>
             </tr></thead>
-            <tbody id="markets-body"><tr><td colspan="8" class="portfolio-empty">Loading markets…</td></tr></tbody>
+            <tbody id="markets-body"><tr><td colspan="8"><div class="skel"></div></td></tr><tr><td colspan="8"><div class="skel w70"></div></td></tr><tr><td colspan="8"><div class="skel w40"></div></td></tr></tbody>
           </table>
         </div>
       </div>
