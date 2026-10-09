@@ -240,6 +240,24 @@
         <div class="progress-labels" id="progress-labels" style="display:none;"><span>Approve</span><span>Swap</span></div>
         <div id="tx-swap" class="tx-status"></div>
       </div>
+      <div class="card r3d-card" id="route3d">
+        <div class="r3d-head">
+          <div><b>Route view</b><div class="r3d-sub" id="r3d-route">–</div></div>
+          <button class="chip" id="r3d-play" onclick="route3dRace()">▶ Race route</button>
+        </div>
+        <div class="r3d-stage" id="r3d-stage">
+          <div class="r3d-hud">
+            <div class="r3d-phase" id="r3d-phase">Ready</div>
+            <div class="r3d-stats">
+              <span>⚡ <b id="r3d-speed">0</b> km/h</span>
+              <span>◎ <b id="r3d-coins">0/14</b></span>
+              <span class="r3d-fuel">⛽<i><b id="r3d-fuelbar" style="width:100%"></b></i></span>
+            </div>
+          </div>
+          <div class="r3d-fallback" id="r3d-fallback">Loading 3D view…</div>
+        </div>
+        <div class="r3d-foot" id="r3d-foot">A visual preview: the car drives the route, collects fees and checks in at the router.</div>
+      </div>
       <p style="font-size:.72rem;color:var(--faint);margin-top:12px;text-align:center;">Every token is paired against WHERESY on-chain; the router wraps native HERESY and hops through WHERESY when needed. <a class="addr-link" href="docs.html#swapping">How swaps work →</a></p>
     </aside>
   </div>
@@ -520,5 +538,7 @@ This sends a real <span class="mono">send()</span> transaction to the ERC20Token
 <script src="assets/js/portfolio.js"></script>
 <script src="assets/js/main.js"></script>
 <script src="assets/js/tour.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="assets/js/route3d.js"></script>
 </body>
 </html>
