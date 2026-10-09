@@ -119,6 +119,35 @@
         </div>
         <div class="chart-foot" id="chart-status">Loading on-chain history…</div>
       </div>
+      <div class="card details-card" id="details-card">
+        <div class="table-head">
+          <div><h3 id="det-title">Token details</h3><div class="section-sub" id="det-sub"></div></div>
+        </div>
+        <div class="det-grid">
+          <div class="det-tile"><div class="k">Price (USD)</div><div class="v" id="det-price-usd">–</div></div>
+          <div class="det-tile"><div class="k">Price (HERESY)</div><div class="v" id="det-price-whe">–</div></div>
+          <div class="det-tile"><div class="k">24h volume</div><div class="v" id="det-vol">–</div></div>
+          <div class="det-tile"><div class="k">24h txns</div><div class="v" id="det-txns">–</div></div>
+          <div class="det-tile"><div class="k">Liquidity</div><div class="v" id="det-liq">–</div></div>
+          <div class="det-tile"><div class="k">FDV</div><div class="v" id="det-fdv">–</div></div>
+          <div class="det-tile"><div class="k">Makers 24h</div><div class="v" id="det-makers">–</div></div>
+          <div class="det-tile"><div class="k">Total supply</div><div class="v" id="det-supply">–</div></div>
+        </div>
+        <div class="buy-pressure">
+          <div class="bp-labels"><span class="up" id="det-buys">Buys –</span><span class="down" id="det-sells">Sells –</span></div>
+          <div class="bp-bar"><div class="bp-buy" id="det-bp"></div></div>
+          <div class="bp-labels small"><span id="det-buyvol">Buy vol –</span><span id="det-sellvol">Sell vol –</span></div>
+        </div>
+        <div class="det-addrs" id="det-addrs"></div>
+        <h4 class="det-h">Recent trades</h4>
+        <div class="table-wrap">
+          <table class="markets trades" id="trades-table">
+            <thead><tr><th>Time</th><th>Type</th><th class="num">Price</th><th class="num">Amount</th><th class="num">Value</th><th class="hide-sm">Maker</th><th></th></tr></thead>
+            <tbody id="trades-body"><tr><td colspan="7" class="portfolio-empty">Loading trades…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
 
       <div class="card">
         <div class="table-head">
@@ -475,6 +504,7 @@ This sends a real <span class="mono">send()</span> transaction to the ERC20Token
 <script src="assets/js/swap.js"></script>
 <script src="assets/js/bridge.js"></script>
 <script src="assets/js/chart.js"></script>
+<script src="assets/js/details.js"></script>
 <script src="assets/js/markets.js"></script>
 <script src="assets/js/portfolio.js"></script>
 <script src="assets/js/main.js"></script>

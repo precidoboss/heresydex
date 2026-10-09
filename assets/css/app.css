@@ -178,3 +178,20 @@ table.markets td.num{font-family:var(--font-mono);font-size:.82rem;} table.marke
 #price-chart{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;}
 .chart-tab.active img{box-shadow:0 0 0 2px rgba(255,149,0,.35);}
 .chart-change{transition:background .3s ease,color .3s ease;}
+
+/* ---- token details panel ---- */
+.details-card{margin-top:16px;}
+.det-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.det-tile{background:var(--ink);border:1px solid var(--border-soft);border-radius:10px;padding:10px 12px;}
+.det-tile .k{font-size:.6rem;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);}
+.det-tile .v{font-family:var(--font-mono);font-size:.9rem;margin-top:3px;word-break:break-word;}
+.buy-pressure{margin:6px 0 14px;}
+.bp-labels{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:.75rem;}
+.bp-labels.small{font-size:.66rem;color:var(--muted);margin-top:4px;}
+.bp-bar{height:8px;border-radius:99px;background:rgba(255,74,28,.35);overflow:hidden;margin:6px 0;}
+.bp-buy{height:100%;width:50%;background:linear-gradient(90deg,#16a34a,#22C55E);transition:width .8s cubic-bezier(.2,.8,.2,1);}
+.det-addrs{display:flex;flex-direction:column;gap:6px;font-size:.78rem;margin-bottom:12px;}
+.det-addrs .k{color:var(--muted);font-weight:700;margin-right:6px;}
+.det-h{font-family:var(--font-display);letter-spacing:.8px;margin:6px 0 8px;font-size:1rem;}
+#trades-table td{white-space:nowrap;font-size:.8rem;}
+@media (max-width:640px){ .det-grid{grid-template-columns:repeat(2,1fr);} }

@@ -10,6 +10,7 @@
 
 const HIST_KEY = 'heresy_hist_v2';
 const SYNC_TOPIC = ethers.id('Sync(uint112,uint112)');
+const SWAP_TOPIC = ethers.id('Swap(address,uint256,uint256,uint256,uint256,address)');
 const HIST_WINDOW_SECS = 7 * 24 * 3600;
 const HIST_BUCKET_MS = 60 * 1000;
 const HIST_MAX_POINTS = 4000;
@@ -83,22 +84,36 @@ async function backfillHistory() {
 
     const coder = ethers.AbiCoder.defaultAbiCoder();
     const fresh = {};
+    const freshTrades = [];
     let span = 20000, start = fromBlock, requests = 0;
     while (start <= latest && requests < 300) {
       const end = Math.min(latest, start + span - 1);
       try {
-        const logs = await roProvider.getLogs({ address: pools, topics: [SYNC_TOPIC], fromBlock: start, toBlock: end });
+        const logs = await roProvider.getLogs({ address: pools, topics: [[SYNC_TOPIC, SWAP_TOPIC]], fromBlock: start, toBlock: end });
         for (const log of logs) {
           const meta = byPool[log.address.toLowerCase()];
           if (!meta) continue;
-          const [r0, r1] = coder.decode(['uint112', 'uint112'], log.data);
-          const tokRaw = meta.tokenIsToken0 ? r0 : r1;
-          const wheRaw = meta.tokenIsToken0 ? r1 : r0;
-          const tok = parseFloat(ethers.formatUnits(tokRaw, TOKENS[meta.key].decimals));
-          const whe = parseFloat(ethers.formatUnits(wheRaw, 18));
-          if (!(tok > 0) || !(whe > 0)) continue;
+          const dec = TOKENS[meta.key].decimals;
           const t = (latestBlk.timestamp - (latest - log.blockNumber) * avgBt) * 1000;
-          (fresh[meta.key] = fresh[meta.key] || []).push([Math.round(t), whe / tok]);
+          if (log.topics[0] === SYNC_TOPIC) {
+            const [r0, r1] = coder.decode(['uint112', 'uint112'], log.data);
+            const tokRaw = meta.tokenIsToken0 ? r0 : r1;
+            const wheRaw = meta.tokenIsToken0 ? r1 : r0;
+            const tok = parseFloat(ethers.formatUnits(tokRaw, dec));
+            const whe = parseFloat(ethers.formatUnits(wheRaw, 18));
+            if (!(tok > 0) || !(whe > 0)) continue;
+            (fresh[meta.key] = fresh[meta.key] || []).push([Math.round(t), whe / tok]);
+          } else if (log.topics[0] === SWAP_TOPIC) {
+            const [a0i, a1i, a0o, a1o] = coder.decode(['uint256', 'uint256', 'uint256', 'uint256'], log.data);
+            const tokIn = meta.tokenIsToken0 ? a0i : a1i, tokOut = meta.tokenIsToken0 ? a0o : a1o;
+            const wheIn = meta.tokenIsToken0 ? a1i : a0i, wheOut = meta.tokenIsToken0 ? a1o : a0o;
+            const side = wheIn > 0n ? 'buy' : 'sell';          // buy = WHERESY in, token out
+            const tok = parseFloat(ethers.formatUnits(side === 'buy' ? tokOut : tokIn, dec));
+            const whe = parseFloat(ethers.formatUnits(side === 'buy' ? wheIn : wheOut, 18));
+            if (!(tok > 0) || !(whe > 0)) continue;
+            freshTrades.push({ key: meta.key, t: Math.round(t), side, tok, whe,
+              tx: log.transactionHash, idx: log.index, maker: '0x' + log.topics[2].slice(26) });
+          }
         }
         start = end + 1;
         requests++;
@@ -119,6 +134,7 @@ async function backfillHistory() {
       if (out.length > HIST_MAX_POINTS) out = out.slice(out.length - HIST_MAX_POINTS);
       histData[k] = out;
     });
+    ingestTrades(freshTrades);
     histMeta.lastBlock = latest;
     saveHist();
     histState = 'ready';
@@ -130,6 +146,7 @@ async function backfillHistory() {
     setChartStatus('Live ticks only — on-chain history unavailable from this RPC right now');
   }
   renderChart();
+  if (typeof renderDetails === 'function') renderDetails();
   if (typeof renderMarkets === 'function') renderMarkets();
 }
 
@@ -181,7 +198,19 @@ function buildCandles(pts, candleSecs, start, end) {
     if (p.v < c.l) c.l = p.v;
     c.c = p.v;
   }
-  return Array.from(map.values()).sort((a, b) => a.t - b.t);
+  const sorted = Array.from(map.values()).sort((a, b) => a.t - b.t);
+  // fill quiet periods with flat candles at the previous close (no gaps)
+  const out = [];
+  for (const c of sorted) {
+    if (out.length) {
+      const prev = out[out.length - 1];
+      for (let t = prev.t + size; t < c.t && t - prev.t < 2000 * size; t += size) {
+        out.push({ t, o: prev.c, h: prev.c, l: prev.c, c: prev.c, flat: true });
+      }
+    }
+    out.push(c);
+  }
+  return out;
 }
 
 function chartWindow() {
@@ -245,7 +274,7 @@ const CV = {
   canvas: null, ctx: null, w: 0, h: 0, dpr: 1, started: false,
   candles: [], sig: '', enterT: 0,
   min: 0, max: 1, tMin: 0, tMax: 1, ready: false,   // y-domain (eased toward target)
-  hoverX: null, hoverY: null
+  hoverX: null, hoverY: null, flashT: -1e9, lastClose: null
 };
 const CV_PAD = { l: 10, r: 74, t: 28, b: 26 };
 
@@ -363,6 +392,14 @@ function cvFrame(now) {
     ctx.textAlign = 'left';
     ctx.fillText(fmtChartVal(last.c), PL + pw + 6, ly);
 
+    // live tick flash: a short expanding ring when the latest close changes
+    const fAge = now - CV.flashT;
+    if (fAge < 700) {
+      const k = fAge / 700;
+      ctx.beginPath(); ctx.arc(xOf(n - 1), ly, 4 + k * 18, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${lastRgb},${0.6 * (1 - k)})`; ctx.lineWidth = 2; ctx.stroke();
+    }
+
     // live pulse on the latest candle
     const lx = xOf(n - 1);
     const pulse = (Math.sin(now / 320) + 1) / 2;
@@ -452,6 +489,10 @@ function renderChart() {
   // animate candles in only when the series identity changes
   const sig = `${key}|${chartRange}|${chartDenom}`;
   if (sig !== CV.sig) { CV.sig = sig; CV.enterT = performance.now(); }
+  if (CV.lastClose != null && sig === CV.sig && candles[candles.length - 1].c !== CV.lastClose) {
+    CV.flashT = performance.now();
+  }
+  CV.lastClose = candles[candles.length - 1].c;
   CV.candles = candles;
 
   const lo = Math.min(...candles.map(c => c.l)), hi = Math.max(...candles.map(c => c.h));
@@ -461,7 +502,7 @@ function renderChart() {
 
   const first = candles[0].o, last = candles[candles.length - 1].c;
   const pct = first > 0 ? ((last - first) / first) * 100 : 0;
-  document.getElementById('chart-px').textContent = fmtChartValUnit(last);
+  tweenText(document.getElementById('chart-px'), fmtChartValUnit(last));
   changeEl.textContent = (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct).toFixed(2) + '%';
   changeEl.className = 'chart-change ' + (pct > 0.001 ? 'up' : pct < -0.001 ? 'down' : 'flat');
   document.getElementById('stat-high').textContent = fmtChartVal(hi);
@@ -474,4 +515,5 @@ function renderChart() {
     const liqHeresy = pd.wheresyReserve * 2;
     liqEl.textContent = wheresyUsd > 0 ? fmtUsd(liqHeresy * wheresyUsd) : fmtAdaptive(liqHeresy) + ' HERESY';
   } else liqEl.textContent = '–';
+  if (typeof renderDetails === 'function') renderDetails();
 }
