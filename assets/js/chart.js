@@ -10,6 +10,7 @@
 
 const HIST_KEY = 'heresy_hist_v2';
 const SYNC_TOPIC = ethers.id('Sync(uint112,uint112)');
+const SWAP_TOPIC = ethers.id('Swap(address,uint256,uint256,uint256,uint256,address)');
 const HIST_WINDOW_SECS = 7 * 24 * 3600;
 const HIST_BUCKET_MS = 60 * 1000;
 const HIST_MAX_POINTS = 4000;
@@ -83,22 +84,36 @@ async function backfillHistory() {
 
     const coder = ethers.AbiCoder.defaultAbiCoder();
     const fresh = {};
+    const freshTrades = [];
     let span = 20000, start = fromBlock, requests = 0;
     while (start <= latest && requests < 300) {
       const end = Math.min(latest, start + span - 1);
       try {
-        const logs = await roProvider.getLogs({ address: pools, topics: [SYNC_TOPIC], fromBlock: start, toBlock: end });
+        const logs = await roProvider.getLogs({ address: pools, topics: [[SYNC_TOPIC, SWAP_TOPIC]], fromBlock: start, toBlock: end });
         for (const log of logs) {
           const meta = byPool[log.address.toLowerCase()];
           if (!meta) continue;
-          const [r0, r1] = coder.decode(['uint112', 'uint112'], log.data);
-          const tokRaw = meta.tokenIsToken0 ? r0 : r1;
-          const wheRaw = meta.tokenIsToken0 ? r1 : r0;
-          const tok = parseFloat(ethers.formatUnits(tokRaw, TOKENS[meta.key].decimals));
-          const whe = parseFloat(ethers.formatUnits(wheRaw, 18));
-          if (!(tok > 0) || !(whe > 0)) continue;
+          const dec = TOKENS[meta.key].decimals;
           const t = (latestBlk.timestamp - (latest - log.blockNumber) * avgBt) * 1000;
-          (fresh[meta.key] = fresh[meta.key] || []).push([Math.round(t), whe / tok]);
+          if (log.topics[0] === SYNC_TOPIC) {
+            const [r0, r1] = coder.decode(['uint112', 'uint112'], log.data);
+            const tokRaw = meta.tokenIsToken0 ? r0 : r1;
+            const wheRaw = meta.tokenIsToken0 ? r1 : r0;
+            const tok = parseFloat(ethers.formatUnits(tokRaw, dec));
+            const whe = parseFloat(ethers.formatUnits(wheRaw, 18));
+            if (!(tok > 0) || !(whe > 0)) continue;
+            (fresh[meta.key] = fresh[meta.key] || []).push([Math.round(t), whe / tok]);
+          } else if (log.topics[0] === SWAP_TOPIC) {
+            const [a0i, a1i, a0o, a1o] = coder.decode(['uint256', 'uint256', 'uint256', 'uint256'], log.data);
+            const tokIn = meta.tokenIsToken0 ? a0i : a1i, tokOut = meta.tokenIsToken0 ? a0o : a1o;
+            const wheIn = meta.tokenIsToken0 ? a1i : a0i, wheOut = meta.tokenIsToken0 ? a1o : a0o;
+            const side = wheIn > 0n ? 'buy' : 'sell';          // buy = WHERESY in, token out
+            const tok = parseFloat(ethers.formatUnits(side === 'buy' ? tokOut : tokIn, dec));
+            const whe = parseFloat(ethers.formatUnits(side === 'buy' ? wheIn : wheOut, 18));
+            if (!(tok > 0) || !(whe > 0)) continue;
+            freshTrades.push({ key: meta.key, t: Math.round(t), side, tok, whe,
+              tx: log.transactionHash, idx: log.index, maker: '0x' + log.topics[2].slice(26) });
+          }
         }
         start = end + 1;
         requests++;
@@ -119,6 +134,7 @@ async function backfillHistory() {
       if (out.length > HIST_MAX_POINTS) out = out.slice(out.length - HIST_MAX_POINTS);
       histData[k] = out;
     });
+    ingestTrades(freshTrades);
     histMeta.lastBlock = latest;
     saveHist();
     histState = 'ready';
@@ -130,6 +146,7 @@ async function backfillHistory() {
     setChartStatus('Live ticks only — on-chain history unavailable from this RPC right now');
   }
   renderChart();
+  if (typeof renderDetails === 'function') renderDetails();
   if (typeof renderMarkets === 'function') renderMarkets();
 }
 
@@ -498,4 +515,5 @@ function renderChart() {
     const liqHeresy = pd.wheresyReserve * 2;
     liqEl.textContent = wheresyUsd > 0 ? fmtUsd(liqHeresy * wheresyUsd) : fmtAdaptive(liqHeresy) + ' HERESY';
   } else liqEl.textContent = '–';
+  if (typeof renderDetails === 'function') renderDetails();
 }
