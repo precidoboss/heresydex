@@ -23,7 +23,7 @@ function ingestTrades(list) {
   try { localStorage.setItem(TRADE_KEY, JSON.stringify(tradeStore)); } catch (e) { /* quota */ }
 }
 
-function short(addr) { return addr ? addr.slice(0, 6) + '…' + addr.slice(-4) : '–'; }
+function shortAddr(addr) { return addr ? addr.slice(0, 6) + '…' + addr.slice(-4) : '–'; }
 function ago(ms) {
   const s = Math.max(0, (Date.now() - ms) / 1000);
   if (s < 60) return Math.floor(s) + 's ago';
@@ -94,8 +94,8 @@ function renderDetails() {
   const addrBox = document.getElementById('det-addrs');
   if (addrBox) {
     addrBox.innerHTML = `
-      <div><span class="k">${pk} token</span> <a class="addr-link" href="${GROTTO_ADDR_URL}${t.address}" target="_blank" rel="noopener">${short(t.address)}</a></div>
-      <div><span class="k">Pool</span> <a class="addr-link" href="${GROTTO_ADDR_URL}${t.pool || ''}" target="_blank" rel="noopener">${short(t.pool || '')}</a></div>`;
+      <div><span class="k">${pk} token</span> <a class="addr-link" href="${GROTTO_ADDR_URL}${t.address}" target="_blank" rel="noopener">${shortAddr(t.address)}</a></div>
+      <div><span class="k">Pool</span> <a class="addr-link" href="${GROTTO_ADDR_URL}${t.pool || ''}" target="_blank" rel="noopener">${shortAddr(t.pool || '')}</a></div>`;
   }
 
   // recent trades
@@ -115,7 +115,7 @@ function renderDetails() {
       <td class="num">${fmtAdaptive(px)}</td>
       <td class="num">${fmtAdaptive(x.tok)} <small>${pk}</small></td>
       <td class="num">${val}</td>
-      <td class="hide-sm mono">${short(x.maker)}</td>
+      <td class="hide-sm mono">${shortAddr(x.maker)}</td>
       <td><a class="addr-link" href="${GROTTO_EXPLORER}/tx/${x.tx}" target="_blank" rel="noopener">tx ↗</a></td>
     </tr>`;
   }).join('');
