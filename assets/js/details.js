@@ -42,6 +42,11 @@ async function loadSupply(pk) {
   } catch (e) { supplyCache[pk] = null; }
 }
 
+function detCopy(btn, text) {
+  const done = () => { const o = btn.textContent; btn.textContent = 'Copied ✓'; setTimeout(() => btn.textContent = o, 1400); };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, done);
+  else done();
+}
 function setTxt(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 
 function renderDetails() {
@@ -70,6 +75,30 @@ function renderDetails() {
   setTxt('det-title', `${pk} details`);
   setTxt('det-sub', key === 'HERESY' || key === 'WHERESY' ? 'BOB / HERESY pool' : `${pk} / HERESY pool`);
   setTxt('det-price-usd', fmtUsdOr(usd));
+  // price changes over several windows (from the on-chain price series)
+  const series = rawPoolSeries(pk);
+  const chg = win => {
+    if (series.length < 2) return null;
+    const last = series[series.length - 1][1];
+    const base = series.filter(p => p[0] <= now - win).pop() || series.find(p => p[0] >= now - win);
+    return base && base[1] > 0 ? ((last - base[1]) / base[1]) * 100 : null;
+  };
+  const setChg = (id, v) => {
+    const el = document.getElementById(id); if (!el) return;
+    if (v == null) { el.textContent = '–'; el.className = 'v'; return; }
+    el.textContent = (v >= 0 ? '▲ ' : '▼ ') + Math.abs(v).toFixed(2) + '%';
+    el.className = 'v ' + (v > 0.005 ? 'up' : v < -0.005 ? 'down' : '');
+  };
+  setChg('det-ch1h', chg(3600000));
+  setChg('det-ch6h', chg(6 * 3600000));
+  setChg('det-ch7d', chg(HIST_WINDOW_SECS * 1000));
+  setTxt('det-res-tok', pd ? fmtAdaptive(pd.tokenReserve) + ' ' + pk : '–');
+  setTxt('det-res-whe', pd ? fmtAdaptive(pd.wheresyReserve) + ' HERESY' : '–');
+  setTxt('det-ratio', pd && pd.tokenReserve > 0 ? '1 ' + pk + ' = ' + fmtAdaptive(pd.wheresyReserve / pd.tokenReserve) + ' HERESY' : '–');
+  const all7 = tradeStore[pk] || [];
+  setTxt('det-trades7d', all7.length ? String(all7.length) : '0');
+  const firstSeen = series.length ? series[0][0] : 0;
+  setTxt('det-age', firstSeen ? 'since ' + new Date(firstSeen).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '–');
   setTxt('det-price-whe', whePerTok > 0 ? fmtAdaptive(whePerTok) + ' HERESY' : '–');
   setTxt('det-vol', volWhe > 0 ? (wheresyUsd > 0 ? fmtUsd(volWhe * wheresyUsd) : fmtAdaptive(volWhe) + ' HERESY') : '–');
   setTxt('det-txns', trades24.length ? String(trades24.length) : '0');
@@ -94,8 +123,8 @@ function renderDetails() {
   const addrBox = document.getElementById('det-addrs');
   if (addrBox) {
     addrBox.innerHTML = `
-      <div><span class="k">${pk} token</span> <a class="addr-link" href="${GROTTO_ADDR_URL}${t.address}" target="_blank" rel="noopener">${shortAddr(t.address)}</a></div>
-      <div><span class="k">Pool</span> <a class="addr-link" href="${GROTTO_ADDR_URL}${t.pool || ''}" target="_blank" rel="noopener">${shortAddr(t.pool || '')}</a></div>`;
+      <div><span class="k">${pk} token</span> <a class="addr-link" href="${GROTTO_ADDR_URL}${t.address}" target="_blank" rel="noopener">${shortAddr(t.address)}</a> <button class="copy-btn" onclick="detCopy(this,'${t.address}')">Copy</button></div>
+      <div><span class="k">Pool</span> <a class="addr-link" href="${GROTTO_ADDR_URL}${t.pool || ''}" target="_blank" rel="noopener">${shortAddr(t.pool || '')}</a> <button class="copy-btn" onclick="detCopy(this,'${t.pool || ''}')">Copy</button></div>`;
   }
 
   // recent trades

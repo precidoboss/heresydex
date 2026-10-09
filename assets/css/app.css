@@ -323,3 +323,8 @@ table.markets td.num{font-family:var(--font-mono);font-size:.82rem;} table.marke
   .gd-btns{justify-content:space-between;}
   .gd-toast{bottom:auto;top:58%;}
 }
+
+/* ---- extra market + details ---- */
+.det-tile .v.up{color:var(--success,#22C55E);} .det-tile .v.down{color:var(--red,#FF4A1C);}
+.copy-btn{font-family:var(--font-body);font-weight:800;font-size:.62rem;letter-spacing:.4px;text-transform:uppercase;background:var(--ink,#0E0E10);border:1px solid var(--border,#2E2E33);color:var(--muted);padding:3px 8px;border-radius:6px;margin-left:6px;cursor:pointer;transition:all .2s;}
+.copy-btn:hover{color:var(--orange);border-color:var(--orange);}

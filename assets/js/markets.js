@@ -2,6 +2,13 @@
 let marketsSort = { by:'liq', dir:-1 };
 let marketsFilter = '';
 
+// 24h volume (HERESY) and trade count from the locally stored Swap history
+function poolStats24h(key){
+  const cutoff = Date.now() - 86400000;
+  const t = (typeof tradeStore !== 'undefined' && tradeStore[key] || []).filter(x => x.t >= cutoff);
+  return { vol: t.reduce((s,x)=>s+x.whe,0), txns: t.length };
+}
+
 function sparkSvg(key){
   let pts;
   try{ pts = seriesForSpark(key); }catch(e){ pts = []; }
@@ -37,7 +44,8 @@ function marketRows(){
     const pd = poolData[key];
     const wp = pd && pd.tokenReserve>0 ? pd.wheresyReserve/pd.tokenReserve : 0;
     const liqH = pd ? pd.wheresyReserve*2 : 0;
-    return { key, wp, usd: tokenUsd(key), chg: change24h(key), liqH, liqUsd: liqH*wheresyUsd };
+    const d = poolStats24h(key);
+    return { key, wp, usd: tokenUsd(key), chg: change24h(key), liqH, liqUsd: liqH*wheresyUsd, vol: d.vol, txns: d.txns };
   });
 }
 
@@ -50,11 +58,11 @@ function renderMarkets(){
     rows = rows.filter(r=>r.key.toLowerCase().includes(q));
   }
   const by = marketsSort.by, dir = marketsSort.dir;
-  const val = r => by==='name' ? r.key : by==='price' ? (r.usd||r.wp) : by==='chg' ? (r.chg==null?-Infinity:r.chg) : r.liqH;
+  const val = r => by==='name' ? r.key : by==='price' ? (r.usd||r.wp) : by==='chg' ? (r.chg==null?-Infinity:r.chg) : by==='vol' ? r.vol : by==='txns' ? r.txns : r.liqH;
   rows.sort((a,b)=>{ const x=val(a), y=val(b); return (x>y?1:x<y?-1:0)*dir; });
 
   if(rows.length === 0){
-    body.innerHTML = `<tr><td colspan="6" class="portfolio-empty">${Object.keys(poolData).length? 'No markets match your search.' : 'Loading markets…'}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="8" class="portfolio-empty">${Object.keys(poolData).length? 'No markets match your search.' : 'Loading markets…'}</td></tr>`;
     return;
   }
   body.innerHTML = rows.map((r,i)=>{
@@ -67,6 +75,8 @@ function renderMarkets(){
       <td><div class="mk-token"><img src="${iconFor(r.key)}" alt=""/><div><b>${r.key}</b>${t.lowLiq?' <span class="liq-flag">thin</span>':''}<div class="mk-sub">${r.key} / HERESY</div></div></div></td>
       <td class="num">${price}</td>
       <td class="num">${chg}</td>
+      <td class="num hide-sm">${r.vol>0 ? (wheresyUsd>0 ? fmtUsd(r.vol*wheresyUsd) : fmtAdaptive(r.vol)+' <small>HERESY</small>') : '–'}</td>
+      <td class="num hide-sm">${r.txns || '–'}</td>
       <td class="num hide-sm">${liq}</td>
       <td class="hide-sm">${sparkSvg(r.key)}</td>
     </tr>`;

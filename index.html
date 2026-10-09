@@ -133,6 +133,14 @@
           <div class="det-tile"><div class="k">FDV</div><div class="v" id="det-fdv">–</div></div>
           <div class="det-tile"><div class="k">Makers 24h</div><div class="v" id="det-makers">–</div></div>
           <div class="det-tile"><div class="k">Total supply</div><div class="v" id="det-supply">–</div></div>
+          <div class="det-tile"><div class="k">Change 1h</div><div class="v" id="det-ch1h">–</div></div>
+          <div class="det-tile"><div class="k">Change 6h</div><div class="v" id="det-ch6h">–</div></div>
+          <div class="det-tile"><div class="k">Change 7d</div><div class="v" id="det-ch7d">–</div></div>
+          <div class="det-tile"><div class="k">Pool reserves</div><div class="v" id="det-res-tok">–</div></div>
+          <div class="det-tile"><div class="k">Pool reserves (HERESY)</div><div class="v" id="det-res-whe">–</div></div>
+          <div class="det-tile"><div class="k">Pool ratio</div><div class="v" id="det-ratio">–</div></div>
+          <div class="det-tile"><div class="k">Trades (7d)</div><div class="v" id="det-trades7d">–</div></div>
+          <div class="det-tile"><div class="k">Pool age</div><div class="v" id="det-age">–</div></div>
         </div>
         <div class="buy-pressure">
           <div class="bp-labels"><span class="up" id="det-buys">Buys –</span><span class="down" id="det-sells">Sells –</span></div>
@@ -162,10 +170,12 @@
               <th data-sort="name" onclick="sortMarkets('name')">Token</th>
               <th class="num" data-sort="price" onclick="sortMarkets('price')">Price</th>
               <th class="num" data-sort="chg" onclick="sortMarkets('chg')">24h</th>
+              <th class="num hide-sm" data-sort="vol" onclick="sortMarkets('vol')">Volume 24h</th>
+              <th class="num hide-sm" data-sort="txns" onclick="sortMarkets('txns')">Txns 24h</th>
               <th class="num hide-sm sorted" data-sort="liq" data-dir="▼" onclick="sortMarkets('liq')">Liquidity</th>
               <th class="hide-sm">Trend</th>
             </tr></thead>
-            <tbody id="markets-body"><tr><td colspan="6" class="portfolio-empty">Loading markets…</td></tr></tbody>
+            <tbody id="markets-body"><tr><td colspan="8" class="portfolio-empty">Loading markets…</td></tr></tbody>
           </table>
         </div>
       </div>
