@@ -100,7 +100,8 @@ function updateHeroStats(){
   const rows = marketRows();
   const totalLiq = rows.reduce((s,r)=>s + (r.liqH||0), 0);
   tweenText(document.getElementById('hs-heresy'), wheresyUsd>0 ? fmtUsd(wheresyUsd) : '–');
-  tweenText(document.getElementById('hs-bob'), bobUsd>0 ? fmtUsd(bobUsd) : '–');
+  const bobWp = wheresyPerToken('BOB');
+  tweenText(document.getElementById('hs-bob'), bobUsd>0 ? fmtUsd(bobUsd) : (bobWp>0 ? fmtAdaptive(bobWp)+' HERESY' : '–'));
   tweenText(document.getElementById('hs-liq'), totalLiq>0 ? (wheresyUsd>0 ? fmtUsd(totalLiq*wheresyUsd) : fmtAdaptive(totalLiq)+' HERESY') : '–');
   tweenText(document.getElementById('hs-markets'), String(rows.filter(r=>r.liqH>0).length || rows.length));
 }
